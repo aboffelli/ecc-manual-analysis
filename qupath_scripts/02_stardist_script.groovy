@@ -18,7 +18,7 @@ import qupath.lib.scripting.QP
 // that takes 3 channel RGB as input (e.g. he_heavy_augment.pb)
 // You can find some at https://github.com/qupath/models
 // (Check credit & reuse info before downloading)
-def modelPath = "/Users/Elijah/Downloads/dab_stained_nuclei2.pb"
+def modelPath = "/home/aboffelli/QuPath/he_heavy_augment.pb"
 
 // Customize how the StarDist detection should be appliedd
 // Here some reasonable default options are specified
@@ -31,8 +31,8 @@ def stardist = StarDist2D
             .build()
 	)
     .normalizePercentiles(0.8, 99.8) // Percentile normalization
-    .threshold(0.3)              // Probability (detection) threshold
-    .pixelSize(1.2)              // Resolution for detection
+    .threshold(0.6)              // Probability (detection) threshold
+    .pixelSize(0.8)              // Resolution for detection
     .measureShape()              // Add shape measurements
     .measureIntensity()          // Add nucleus measurements
     .build()
