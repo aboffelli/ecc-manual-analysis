@@ -25,7 +25,8 @@ def columnsToInclude = new String[]{"Image", "Object ID", "ROI", "Centroid X µm
 def exportType = PathDetectionObject.class
 
 // Create the output file path
-def outputPath = buildFilePath(PROJECT_BASE_DIR, 'measurements.txt')
+def projectName = project.toString().replaceFirst(/^Project:\s*/, "").replaceFirst(/-project$/, "") // removes 'Project: ' prefix and '-project' suffix
+def outputPath = buildFilePath(PROJECT_BASE_DIR, "${projectName}_measurements.txt")
 def outputFile = new File(outputPath)
 
 // Create the measurementExporter and start the export
@@ -37,4 +38,5 @@ def exporter  = new MeasurementExporter()
                   //.filter(obj -> obj.getPathClass() == getPathClass("Tumor"))    // Keep only objects with class 'Tumor'
                   .exportMeasurements(outputFile)        // Start the export process
 
+print "File saved: ${outputPath}"
 print "Done!"
