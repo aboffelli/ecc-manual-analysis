@@ -26,7 +26,7 @@ all_cells <- all_cells %>%
     mutate(FoldChange=Area/mean_cp2) 
     
 
-test <- human_score %>%
+fold_change_plot <- human_score %>%
     ggplot(aes(x=PaccArea, y=FoldChange, fill = Pathologist, 
                shape=Pathologist)) +
     geom_point(size=5) +
@@ -50,4 +50,4 @@ test <- human_score %>%
           legend.text = element_text(size = 18)); test
 
 
-ggsave("~/PACC/TMA/Manuscript/pathologist_scatterplot.tif", test, width = 390, height=240, units = "mm")
+ggsave("~/PACC/TMA/Manuscript/pathologist_scatterplot.tif", fold_change_plot, width = 390, height=240, units = "mm")
