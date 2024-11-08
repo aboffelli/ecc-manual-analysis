@@ -93,3 +93,28 @@ Merge the gene expression to the patient data table.
  {print $0, gex[$1]}' ../Data/Tables/gex_interesting_genes.csv \
  all_patients_with_TMA_PACC_HIF.csv > all_patients_with_TMA_PACC_HIF_GEX.csv
 ```
+
+## QuPath detection
+
+
+
+
+## Calculating nuclear area fold change
+
+Files needed:
+- _measurement.txt (measurements file from QuPath)
+- merged_ecc_sizes.txt (manual analysed ECCs sizes)
+
+### Fit the Gaussian mixture model
+The script ***gaussian_mixture.R*** reads the measurements table and outputs a combined gmm table. Make sure you input all your files in the script.
+
+### Calculate ECC fold change
+Using the new file gmm_table.txt as an input in the python script ***manual_scoring_sizes.py*** together with the merged_ecc_sizes, you generate the file ecc_fold_change.txt
+
+### Plotting the fold change
+Generate a file with all measurements from qupath
+```sh
+awk 'BEGIN {FS=OFS="\t"; print "Parent","Image","Area"} FNR == 1 {next} {print FILENAME,$1,$6}' *A_EPCAM_measurements.txt > all_cells_area.txt
+```
+
+Then use the script ***fold_change_plots.R*** with all the three files: ***gmm_table.txt***, ***ecc_fold_change.txt***, and ***all_cells_area.txt***.
