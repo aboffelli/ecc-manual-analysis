@@ -98,7 +98,6 @@ Merge the gene expression to the patient data table.
 
 
 
-
 ## Calculating nuclear area fold change
 
 Files needed:
