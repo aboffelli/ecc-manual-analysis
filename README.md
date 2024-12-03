@@ -34,13 +34,6 @@ Each sheet was saved as a csv tab delimited.
 ### File merged.csv
 Merge all the csv files into one.
 ```sh
-head -1 SWEBCG_pathXL_export_all_230405_01A.csv > merged.csv; \
-for file in SWEBCG_pathXL_export_all_230405*.csv; do 
-    awk 'NR > 1' $file >> merged.csv 
-done
-```
-OR A newer better way (has to be tested)
-```sh
 awk 'FNR==1 && NR!=1 {next} {print}' \
 SWEBCG_pathXL_export_all_230405*.csv > merged.csv
 ```
