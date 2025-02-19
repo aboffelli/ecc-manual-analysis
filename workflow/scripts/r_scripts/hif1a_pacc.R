@@ -34,13 +34,12 @@ patient_data_with_hif <- merge(data, hif1A_data,
     rename(HIF1A_NUCLEI=`FERNO_SWEBCG_HIF1A Nuclei`,
            HIF1A_NUCLEI_INT= `FERNO_SWEBCG_HIF1A INT Nuclei`)
 
+
 PACC_HIF <- patient_data_with_hif %>% 
     filter(tumor==1) %>% 
-    select(patnr, ID, PARENT,PACC, contains("HIF1A_")) %>% 
+    select(patnr, ID, PARENT, contains("HIF1A_")) %>% 
     group_by(patnr) %>% 
-    mutate(PACC= if_else(PACC == "NA", NA, PACC)) %>%  
-    summarize(PACC=calculate_max(PACC),
-              HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
+    summarize(HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
               HIF1A_NUCLEI_INT = calculate_max(HIF1A_NUCLEI_INT)) %>% 
     mutate(
         HIF1A_ACTIVATION = case_when(
@@ -50,9 +49,24 @@ PACC_HIF <- patient_data_with_hif %>%
         HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT >= 2 ~ 2)
         )
 
+# Save a file with the HIF data.
+patient_data <- suppressMessages(suppressWarnings(read_tsv(patient_unique,
+                 na = "#NULL!"))) %>%
+    filter(exkl == 0, tumor==1) %>%
+    droplevels()
+
+patient_data_with_hif_merged <- patient_data %>%
+    mutate(PACC=as.integer(PACC),
+           PACC_YN = if_else(PACC != 2, 0, 2)) %>%
+    left_join(PACC_HIF, by="patnr") %>%
+    relocate(PACC_YN, .after= PACC)
+
+write.table(patient_data_with_hif_merged, 
+            patient_hif, 
+            sep = "\t", row.names = FALSE, quote = FALSE)
 
 #Box plot with the HIF score
-p1 <- PACC_HIF %>% 
+p1 <- patient_data_with_hif_merged %>% 
     group_by(PACC, HIF1A_ACTIVATION) %>%
     summarise(count = n()) %>%
     mutate(total_count = sum(count),               # Total count within each PACC group
@@ -74,19 +88,7 @@ p1 <- PACC_HIF %>%
 
 ggsave(hif1a_plot, p1, width=150, height=150, units = 'mm')
 
-# Save a file with the HIF data.
-patient_data <- suppressMessages(suppressWarnings(read_tsv(patient_unique,
-                 na = "#NULL!"))) %>%
-    filter(exkl == 0, tumor==1) %>%
-    droplevels()
 
-patient_data_with_hif_merged <- patient_data %>%
-    select(-PACC) %>%
-    left_join(PACC_HIF, by="patnr")
-
-write.table(patient_data_with_hif_merged, 
-            patient_hif, 
-            sep = "\t", row.names = FALSE, quote = FALSE)
 
 
 # contingency_table <- table(PACC_HIF$PACC_YN, PACC_HIF$HIF1A_ACTIVATION)
