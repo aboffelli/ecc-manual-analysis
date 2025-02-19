@@ -12,7 +12,8 @@ data <- read_tsv(paste0(dir,
     #filter(hist_gra %in% c(1,2)) %>% 
     mutate(hist_gra=as.factor(hist_gra))
 long_exp <- data %>% 
-    filter(PACC_YN!="NA") %>% 
+    filter(PACC_YN != "NA") %>%
+    mutate(PACC_YN = if_else(PACC_YN == 0, "-", "+")) %>% 
     pivot_longer(cols = c("cdk1","epas1","hif1a","mki67"), names_to = "gene", values_to = "expression")
 
 
@@ -31,20 +32,22 @@ results_mann_whitney <-  long_exp %>%
                   round(wmwTest(expression ~ PACC_YN)$conf.int[[2]],2)),
               p_value=wmwTest(expression ~ PACC_YN)$p.value,
               .groups = 'drop') %>% 
-    filter(gene=="hif1a")
+    filter(gene=="epas1")
 
 plots <- long_exp %>% 
-    filter(gene=="hif1a") %>% 
+    filter(gene=="epas1") %>% 
     ggplot(aes(x=PACC_YN, y=expression)) +
     geom_jitter(aes(color = PACC_YN), size = 0.5, width = 0.35) +
     geom_boxplot(aes(fill=PACC_YN), alpha=0.6) +
-    scale_fill_manual(values = c("0"='#9ECAE1',"2"='#F8766D'), 
+    scale_fill_manual(values = c("-"='#9ECAE1',"+"='#F8766D'), 
                       name="", )+
-    scale_color_manual(values = c("0"='#9ECAE1',"2"='#F8766D'),
+    scale_color_manual(values = c("-"='#9ECAE1',"+"='#F8766D'),
                        name="")+
     theme_classic(base_size = 20)+
     theme(legend.position = "none")+
-    labs(x="ECC Score", y="HIF1A Expression"); plots
+    annotate("text", x=2, y= 1.5, label = paste0("p = ", round(results_mann_whitney$p_value, 3)), size=6) +
+    labs(x="ECC Score", y="EPAS1 Expression"); plots
+
 #facet_grid(~gene); plots
 
 ggsave("~/PACC/TMA/Manuscript/gex_boxplot.tif", plots, width=110, height=110, units = 'mm')

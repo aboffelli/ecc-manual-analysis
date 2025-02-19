@@ -39,14 +39,11 @@ patient_data_with_hif <- merge(data, hif1A_data,
 
 PACC_HIF <- patient_data_with_hif %>% 
     filter(tumor==1) %>% 
-    select(patnr, ID, PARENT,PACC, contains("HIF1A_")) %>% 
+    select(patnr, ID, PARENT, contains("HIF1A_")) %>% 
     group_by(patnr) %>% 
-    mutate(PACC= if_else(PACC == "NA", NA, PACC)) %>%  
-    summarize(PACC=calculate_max(PACC),
-              HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
+    summarize(HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
               HIF1A_NUCLEI_INT = calculate_max(HIF1A_NUCLEI_INT)) %>% 
     mutate(
-        PACC_YN = if_else(PACC != 2, 0, 2),
         HIF1A_ACTIVATION = case_when(
         HIF1A_NUCLEI <= 1 & HIF1A_NUCLEI_INT <=1 ~ 0,
         HIF1A_NUCLEI == 1 & HIF1A_NUCLEI_INT >=2 ~ 1,
@@ -92,14 +89,15 @@ patient_data <- read_tsv(paste0(dir,
     droplevels()
 
 patient_data_with_hif_merged <- patient_data %>%
-    select(-PACC) %>%
+    mutate(PACC=as.integer(PACC),
+           PACC_YN = if_else(PACC != 2, 0, 2)) %>%
     left_join(PACC_HIF, by="patnr") %>%
     relocate(PACC_YN, .after= PACC)
-# 
-# write.table(patient_data_with_hif_merged, 
-#             paste0(dir,
-#                    "all_patients_with_TMA_PACC_HIF.csv"), 
-#             sep = "\t", row.names = FALSE, quote = FALSE)
+
+write.table(patient_data_with_hif_merged,
+            paste0(dir,
+                   "all_patients_with_TMA_PACC_HIF.csv"),
+            sep = "\t", row.names = FALSE, quote = FALSE)
 
 
 contingency_table <- table(PACC_HIF$PACC_YN, PACC_HIF$HIF1A_ACTIVATION)

@@ -130,7 +130,7 @@ tables <- paste0(dir, "ManualScoreTables/")
 plot_dir_surv <- paste0(dir, "SurvPlots/OnlyGrade1and2/")
 plot_dir_rec <- paste0(dir, "SurvPlots/OnlyGrade1and2/")
 patient_data <- read_tsv(paste0(dir,
-    "all_patient_unique_with_pacc_full_score_new.csv"), na = "#NULL!") %>%
+    "all_patient_unique_with_pacc_full_score_new.csv"), na="#NULL!") %>%
     mutate(PACC=as.integer(PACC)) %>% 
     filter(exkl == 0, PACC %in% c(0,1,2), tumor==1) %>% 
     droplevels()

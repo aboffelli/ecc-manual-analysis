@@ -94,8 +94,8 @@ surv_hr <- function(patient_df, grade=0, label) {
                            "Yes" = "1") %>% 
                 ff_label("Adjuvant therapy"),
             PACC_YN=factor(PACC_YN) %>% 
-                fct_recode("0 or 1"= "0",
-                           "2" = "2") %>% 
+                fct_recode("-"= "0",
+                           "+" = "1") %>% 
                 ff_label("ECC Score")
         )
     
@@ -204,8 +204,8 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
                            "Yes" = "1") %>% 
                 ff_label("Adjuvant therapy"),
             PACC_YN=factor(PACC_YN) %>% 
-                fct_recode("0 or 1"= "0",
-                           "2" = "2") %>% 
+                fct_recode("-"= "0",
+                           "+" = "1") %>% 
                 ff_label("ECC Score")
         )
     
@@ -300,7 +300,7 @@ patient_data <- read_tsv(paste0(dir,
                                 "all_patient_unique_with_pacc_full_score_new.csv"),
                          na = "#NULL!") %>%
     mutate(PACC=if_else(PACC=="NA", NA, as.integer(PACC)),
-           PACC_YN = if_else(PACC != 2, 0, 2),
+           PACC_YN = if_else(PACC == 0, 0, 1),
            hist_gra=as.factor(hist_gra),
            recgrp_h=as.factor(recgrp_h),
            tumsize=as.numeric(tumsize),
@@ -318,8 +318,8 @@ censor_yr <- 15
 all_grades <- surv_hr(patient_df = patient_data,
                      label = "Survival")
 
-write_tsv(all_grades[[1]], paste0(dir,"/HazardRatio/os_with_grade.csv"))
-write_tsv(all_grades[[2]], paste0(dir,"/HazardRatio/surv_with_grade.csv"))
+write_tsv(all_grades[[1]], paste0(dir,"SurvPlots/PACC0_12/os_with_grade.csv"))
+write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/surv_with_grade.csv"))
 
 for (i in c(1,2,3)) {
     new_table <- surv_hr(patient_df = patient_data,
@@ -327,9 +327,9 @@ for (i in c(1,2,3)) {
                          label = paste("Survival: Grade",i))
     
     write_tsv(new_table[[1]],
-              paste0(dir,"/HazardRatio/os_with_grade",i,".csv"))
+              paste0(dir,"SurvPlots/PACC0_12/os_with_grade",i,".csv"))
     # write_tsv(new_table[[2]],
-    #           paste0(dir,"/HazardRatio/surv_with_grade",i,".csv"))
+    #           paste0(dir,"SurvPlots/PACC0_12/surv_with_grade",i,".csv"))
 }
 
 ## Overall and Local Recurrence ----
@@ -339,16 +339,16 @@ all_grades <- rec_hr(patient_data, grade = 0,
                               local = T)
 gt(all_grades[[1]])
 
-write_tsv(all_grades[[1]], paste0(dir,"/HazardRatio/or_with_grade.csv"))
-write_tsv(all_grades[[2]], paste0(dir,"/HazardRatio/lr_with_grade.csv"))
+write_tsv(all_grades[[1]], paste0(dir,"SurvPlots/PACC0_12/or_with_grade.csv"))
+write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/lr_with_grade.csv"))
 # Local recurrence for all grades separately
 for (i in c(1,2,3)) {
     new_table <- rec_hr(patient_data, grade = i, 
                               label = paste("Local recurrence: Grade", i),
                               local = TRUE)
     
-    write_tsv(new_table[[1]], paste0(dir,"/HazardRatio/or_with_grade",i,".csv"))
-    write_tsv(new_table[[2]], paste0(dir,"/HazardRatio/lr_with_grade",i,".csv"))
+    write_tsv(new_table[[1]], paste0(dir,"SurvPlots/PACC0_12/or_with_grade",i,".csv"))
+    write_tsv(new_table[[2]], paste0(dir,"SurvPlots/PACC0_12/lr_with_grade",i,".csv"))
 }
 
 
@@ -357,11 +357,11 @@ for (i in c(1,2,3)) {
 all_grades <- rec_hr(patient_data, grade = 0, 
                               label = "Distant recurrence",
                               local = F)
-write_tsv(all_grades[[2]], paste0(dir,"/HazardRatio/dr_with_grade.csv"))
+write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/dr_with_grade.csv"))
 for (i in c(1,2,3)) {
     dist_table <- rec_hr(patient_data, grade = i, 
                                  label = paste("Distant recurrence: Grade", i),
                                  local = FALSE)
     
-    write_tsv(dist_table[[2]], paste0(dir,"/HazardRatio/dr_with_grade",i,".csv"))
+    write_tsv(dist_table[[2]], paste0(dir,"SurvPlots/PACC0_12/dr_with_grade",i,".csv"))
 }
