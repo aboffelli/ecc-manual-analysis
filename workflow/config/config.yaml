@@ -5,5 +5,6 @@ input_files:
   immuno_tables: "resources/ImmunoStainings/SWEBCG_pathXL_export_all_230405*.csv"
   original_gex: "resources/GEX_46k_with_gene_names.csv"
   detection_tables: "resources/QuPathDetection/*A_EPCAM_measurements.txt"
+  ecc_sizes: "resources/ManualScores/*ecc_sizes.csv"
 
 output_dir: results

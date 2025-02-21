@@ -7,13 +7,21 @@ output_dir = config["output_dir"]
 rule all:
     # Specifies the final output files for the workflow
     input:
+        # Tables --------------------------------------------------------------
         final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
         # Patient data table with ECC score, HIF1A activation score, and GEX data
         
         gmm_table = f"{output_dir}/gmm_table.txt",
         # Gaussian mixture table for calculating fold change nuclear area of ECCs
 
-        all_cells_detection = f"{output_dir}/all_cells_area.txt"
+        all_cells_detection = f"{output_dir}/all_cells_area.txt",
+        # Nuclear area of all detections from QuPath
+
+        ecc_fold_change = f"{output_dir}/ecc_fold_change.txt",
+        # Calculation of the fold change nuclear area of the ECCs
+
+        # Plots ---------------------------------------------------------------
+        fold_change_plot = f"{output_dir}/plots/ecc_fc_scatterplot.tif"
         # surv_curve = f"{output_dir}/plots/survival_km_plot_all_grades.tif",
         # rec_curve = f"{output_dir}/plots/overall_rec_km_plot_all_grades.tif",
         # hr_surv = f"{output_dir}/hr/os_with_grade.csv",
@@ -155,3 +163,39 @@ rule detection_table:
         sub(/^.*\\//, "", fname);  # remove the path of the file
         print fname,$1,$6}}' {input} > {output}
         """
+
+
+rule merge_ecc_sizes:
+    # Merges all the files with ECC sizes
+    input:
+        sorted(glob.glob(config["input_files"]["ecc_sizes"]))
+    output:
+        f"{output_dir}/merged_ecc_sizes.txt"
+    shell:
+        """
+        awk 'FNR == 1 && NR != 1 {{next}}
+        {{print $0}}' {input} > {output}        
+        """
+
+
+rule ecc_fold_change:
+    # Calculates the fold change for each ECC detected by the pathologists
+    input:
+        gmm_table = f"{output_dir}/gmm_table.txt",
+        merged_ecc_sizes = f"{output_dir}/merged_ecc_sizes.txt"
+    output:
+        f"{output_dir}/ecc_fold_change.txt"
+    script:
+        "scripts/patient_data_parsers/manual_scoring_sizes.py"
+
+
+rule fold_change_plot:
+    # Generates a scatterplot with the ecc nuclear area fold change
+    input:
+        gmm_table = f"{output_dir}/gmm_table.txt",
+        ecc_fold_change= f"{output_dir}/ecc_fold_change.txt",
+        all_cells_area = f"{output_dir}/all_cells_area.txt"
+    output:
+        f"{output_dir}/plots/ecc_fc_scatterplot.tif"
+    script:
+        "scripts/r_scripts/fold_change_plots.R"

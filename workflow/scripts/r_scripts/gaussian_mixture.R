@@ -4,6 +4,7 @@ suppressMessages(suppressWarnings(library(grid)))
 suppressMessages(suppressWarnings(library(mclust)))
 suppressMessages(suppressWarnings(library(gtools)))
 
+set.seed(123)  # Ensures reproducibility
 
 plot_gmm_histogram <- function(data, image_name, filename) {
     filename = str_remove(filename, "_measurements.txt")
