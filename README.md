@@ -1,112 +1,64 @@
 # Workflow of the TMA scripts
 
-## PACC score
-Merge the manual analysis scores to the patient list, using the TMA map to 
-track down which TMAs belong to each patient.
+## QuPath/Stardist nuclear detection
+Follow the instructions to install [QuPath](https://qupath.github.io/) and 
+the [Stardist extension](https://github.com/qupath/qupath-extension-stardist).  
+We use a pre-trained model available for download in [here](https://github.com/qupath/models/tree/main/stardist).
 
-Files needed:
-- SB91RT_final_20170821_PrimoLR_EjPnr_orginal.csv
-- Koppling_PathXL_till_TMA-nr.csv
-- PACC_TMA_CH_RM_final.xlsx
+### Running the detection
 
-### File ***complete_patho_results.csv***
-```sh
-for f in *scores.csv; do 
-    awk 'OFS=FS="\t" {print $1,$2,$3}' $f > ${f/.csv/_upd.csv}; 
-done
+The first step is to create a project for the TMA, and import the whole TMA image in QuPath.
 
-awk -F '\t' 'FNR == 1 && NR != 1 {next} {print $0}' \
-Scores/*upd.csv > complete_patho_results.csv
-```
+Open the script ***01_tma_dearrayer.groovy*** in the Script editor (Automate > Script editor), and click Run. This script will detect the TMA columns and rows and save each core as a separate image.
 
-### File all_patients_with_TMA_PACC_new.csv
-Comes from the python script ***patient_data_parser.py***
+Import all the core images to the QuPath project.
 
-## HIF Score merging
+Open the script ***02_stardist_script.groovy*** and click **Run for project** (on the three dots beside the Run button). Select all your images. Remember to remove the full TMA image from the list, if you did not remove from the project.
 
-Files needed:
-- SWEBCG_pathXL_export_all_230405.xlsx
-- all_patients_with_TMA_PACC_new.csv
+When the script finished running for all images, open the script ***03_dab_export_measurements.groovy***, and click Run. This will generate a table containing all the information of every detection in each core.
 
-Original file: ***SWEBCG_pathXL_export_all_230405.xlsx***
-Each sheet was saved as a csv tab delimited.
+Repeat the process for each TMA.
 
-### File merged.csv
-Merge all the csv files into one.
-```sh
-awk 'FNR==1 && NR!=1 {next} {print}' \
-SWEBCG_pathXL_export_all_230405*.csv > merged.csv
-```
+## Snakemake workflow
 
-### File hif_scores.csv
-Get only the HIF1A score and convert the percentages to scores.
+### Installing Snakemake
+Ensure you have Snakemake installed. You can install it via conda or mamba:
 
 ```sh
-awk 'BEGIN {FS=OFS="\t"} NR==1 {print $2,$1,$28,$29,$30} 
-$6 ~ /HIF1a/ {split($2, parent, " "); 
-print parent[2],$1,$28,$29,$30}' merged.csv | \
-sed -e 's/0%/0/g' -e 's/1-10/1/g' -e 's/11-50/2/g' -e 's/>50/3/g' \
--e 's/No score//g' -e 's/a/A/'> hif_scores.csv
+conda create -c conda-forge -c bioconda -n snakemake snakemake
+conda activate snakemake
 ```
 
-### File hif_scores_merged.csv
-Merge both pathologists scores, keeping the highest score.
-
+Alternatively, install it using pip:
 ```sh
-awk 'BEGIN {FS=OFS="\t"; last_core="1A"; highest=0} 
-/ID/ { print $1,$2,$4; next } { if ($2 == last_core) 
-{ if ($4 > highest) {highest=$4}} else {print $1,last_core,highest; 
-last_core=$2; highest=$4}} END {print $1,last_core,highest,high_int}' \
-hif_scores.csv > hif_scores_merged.csv
+pip install snakemake
 ```
 
-### File all_patients_with_TMA_PACC_HIF.csv
-Add the HIF1A score in the patient data table.
-Comes from the R script ***hif1a_pacc.R***
+### Configure the workflow
 
-## Gene expression data merging
+Edit the ```config.yaml``` file to specify the input data and output directory.
 
-Files needed:
-- GEX_46k_with_gene_names.csv 
-- all_patients_with_TMA_PACC_new.csv
+```yaml
+input_files:
+  manual_scores: "path/to/data.txt"
+  patient_file: "path/to/data.txt"
+  tma_map: "path/to/data.txt"
+  immuno_tables: "path/to/data.txt"
+  original_gex: "path/to/data.txt"
+  detection_tables: "path/to/data.txt"
 
-### File gex_interesting_genes.csv
-Isolate only the interesting genes out of the expression data file 
-(cdk1,epas1,hif1a,mki67)
+output_dir: results
+```
+
+### Run snakemake
+
+To test if everything is in place, we can do a dry run
 ```sh
-awk -F "," 'BEGIN {OFS="\t"} {print $46057,$46056,$10708,$13533}' \
-GEX_46k_with_gene_names.csv | sed 's/\r//g' > gex_interesting_genes.csv
+snakemake -n
 ```
-### Generating patient file with GEX
-Merge the gene expression to the patient data table.
 
+If the dry run returns no errors, we can execute the workflow
 ```sh
- awk 'BEGIN {FS=OFS="\t"} 
- NR==FNR {gex[$1]=$2"\t"$3"\t"$4"\t"$5; next} 
- {print $0, gex[$1]}' ../Data/Tables/gex_interesting_genes.csv \
- all_patients_with_TMA_PACC_HIF.csv > all_patients_with_TMA_PACC_HIF_GEX.csv
+# Adjust the number of cores according to your preferences
+snakemake --cores 6
 ```
-
-## QuPath detection
-
-
-
-## Calculating nuclear area fold change
-
-Files needed:
-- _measurement.txt (measurements file from QuPath)
-- merged_ecc_sizes.txt (manual analysed ECCs sizes)
-
-### Fit the Gaussian mixture model
-The script ***gaussian_mixture.R*** reads the measurements table and outputs a combined gmm table. Make sure you input all your files in the script.
-
-### Calculate ECC fold change
-Using the new file gmm_table.txt as an input in the python script ***manual_scoring_sizes.py*** together with the merged_ecc_sizes, you generate the file ecc_fold_change.txt
-
-### Plotting the fold change
-Generate a file with all measurements from qupath
-```sh
-awk 'BEGIN {FS=OFS="\t"; print "Parent","Image","Area"} FNR == 1 {next} {print FILENAME,$1,$6}' *A_EPCAM_measurements.txt > all_cells_area.txt
-```
-
-Then use the script ***fold_change_plots.R*** with all the three files: ***gmm_table.txt***, ***ecc_fold_change.txt***, and ***all_cells_area.txt***.
