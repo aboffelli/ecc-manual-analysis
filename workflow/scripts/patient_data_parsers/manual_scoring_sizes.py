@@ -1,9 +1,11 @@
 import re
 
-filename = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/merged_ecc_sizes.txt'
-output = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/ecc_fold_change.txt'
-gmm_file = '/home/aboffelli/PACC/TMA/Results/QuPathScoreTables/gmm_table.txt'
+# Acess the input files
+filename = snakemake.input["merged_ecc_sizes"]
+gmm_file = snakemake.input["gmm_table"]
 
+# Access the output files
+output = snakemake.output[0]
 
 gmm_dictionary = {}
 gmm_pattern = re.compile(
