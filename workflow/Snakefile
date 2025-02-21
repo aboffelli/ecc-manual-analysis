@@ -1,26 +1,29 @@
+configfile: "config/config.yaml"
 import glob  # Collects file paths using flexible search patterns
 
+# Define a variable for the output directory
+output_dir = config["output_dir"]
 
 rule all:
     # Specifies the final output files for the workflow
     input:
-        final_patient_table = "results/all_patient_unique_with_ecc_hif1a_gex.txt", 
+        final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
         # Patient data table with ECC score, HIF1A activation score, and GEX data
         
-        gmm_table = "results/gmm_table.txt",
+        gmm_table = f"{output_dir}/gmm_table.txt",
         # Gaussian mixture table for calculating fold change nuclear area of ECCs
 
-        all_cells_detection = "results/all_cells_area.txt"
-        # surv_curve = "results/plots/survival_km_plot_all_grades.tif",
-        # rec_curve = "results/plots/overall_rec_km_plot_all_grades.tif",
-        # hr_surv = "results/hr/os_with_grade.csv",
-        # hr_rec = "results/hr/or_with_grade.csv"
+        all_cells_detection = f"{output_dir}/all_cells_area.txt"
+        # surv_curve = f"{output_dir}/plots/survival_km_plot_all_grades.tif",
+        # rec_curve = f"{output_dir}/plots/overall_rec_km_plot_all_grades.tif",
+        # hr_surv = f"{output_dir}/hr/os_with_grade.csv",
+        # hr_rec = f"{output_dir}/hr/or_with_grade.csv"
 
 
 rule merge_manual_score:
     # Combines all manual scoring CSV files into a single complete results file.
     input:
-        sorted(glob.glob("resources/ManualScores/*_scores.csv")) 
+        sorted(glob.glob(config["input_files"]["manual_scores"])) 
         # Collects and sorts all CSV files with manual scores from the "resources/ManualScores" directory
     output:
         "resources/complete_patho_results.csv" # Combined output of all scoring files
@@ -37,12 +40,12 @@ rule merge_manual_score:
 rule ecc_patient_data:
     # Parses patient data and maps TMA cores with ECC information.
     input:
-        patient_file = "resources/SB91RT_final_20170821_PrimoLR_EjPnr_orginal.csv",  # Original patient data file
-        tma_map = "resources/Koppling_PathXL_till_TMA-nr.csv",  # TMA mapping file
+        patient_file = config["input_files"]["patient_file"],  # Original patient data file
+        tma_map = config["input_files"]["tma_map"],  # TMA mapping file
         patho_score = "resources/complete_patho_results.csv"  # Combined manual scoring results
     output:
-        patient_cores = "results/patient_with_core_ecc.txt",  # Patient data with mapped TMA cores and ECC
-        patient_ecc = "results/all_patient_unique_with_ecc.txt"  # Unique patient data with ECC
+        patient_cores = f"{output_dir}/patient_with_core_ecc.txt",  # Patient data with mapped TMA cores and ECC
+        patient_ecc = f"{output_dir}/all_patient_unique_with_ecc.txt"  # Unique patient data with ECC
     script:
         "scripts/patient_data_parsers/patient_data_parser.py"  # Python script for processing
 
@@ -57,7 +60,7 @@ rule prepare_hif1a_file:
     score for each patient.
     """
     input:
-        immuno_tables = glob.glob("resources/ImmunoStainings/SWEBCG_pathXL_export_all_230405*.csv")
+        immuno_tables = glob.glob(config["input_files"]["immuno_tables"])
         # Collects and sorts all CSV files with Immunology stains scores from the "resources/ImmunoStainings" directory 
 
     output:
@@ -72,12 +75,12 @@ rule prepare_hif1a_file:
 rule hif_activation:
     # Adds the hif1A activation score to the patient table.
     input:
-        patient_cores = "results/patient_with_core_ecc.txt", # File containing the patient core location
-        patient_ecc = "results/all_patient_unique_with_ecc.txt", # File that the HIF1A activation will be added.
+        patient_cores = f"{output_dir}/patient_with_core_ecc.txt", # File containing the patient core location
+        patient_ecc = f"{output_dir}/all_patient_unique_with_ecc.txt", # File that the HIF1A activation will be added.
         hif1a_data = "resources/hif_scores_merged.csv" # File containing the hif1a data
     
     output:
-        "results/all_patient_unique_with_ecc_hif1a.txt"
+        f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt"
 
     script:
         "scripts/r_scripts/hif1a_pacc.R"
@@ -94,7 +97,7 @@ rule prepare_gex_file:
     tr ',' '\n' | cat -n
     '''
     input:
-        original_gex = "resources/GEX_46k_with_gene_names.csv"
+        original_gex = config["input_files"]["original_gex"]
     
     output:
         gex = "resources/gex_interesting_genes.csv"
@@ -109,12 +112,12 @@ rule prepare_gex_file:
 rule gene_expression:
     # Adds the gene expression values to the patient data table.
     input: 
-        patient_hif = "results/all_patient_unique_with_ecc_hif1a.txt", # patient data file with HIF1A activation data
+        patient_hif = f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt", # patient data file with HIF1A activation data
         gex = "resources/gex_interesting_genes.csv", # Gene expression data of the selected genes.
         script = "scripts/patient_data_parsers/merge_gene_expression.awk" # script to merge by patient number.
     
     output:
-        "results/all_patient_unique_with_ecc_hif1a_gex.txt"
+        f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
     
     shell:
         """
@@ -128,10 +131,10 @@ rule gmm_table:
     QuPath detection and generates a table with the mean of each component. 
     """
     input:
-        sorted(glob.glob("resources/QuPathDetection/*A_EPCAM_measurements.txt"))
+        sorted(glob.glob(config["input_files"]["detection_tables"]))
     
     output:
-        "results/gmm_table.txt"
+        f"{output_dir}/gmm_table.txt"
     
     script:
         "scripts/r_scripts/gaussian_mixture.R"
@@ -140,19 +143,15 @@ rule gmm_table:
 rule detection_table:
     # Merge the detection files created by QuPath
     input:
-        sorted(glob.glob("resources/QuPathDetection/*A_EPCAM_measurements.txt"))
+        sorted(glob.glob(config["input_files"]["detection_tables"]))
     output: 
-        "results/all_cells_area.txt"
+        f"{output_dir}/all_cells_area.txt"
     shell:
         """
         awk 'BEGIN {{FS=OFS="\t"; print "Parent","Image","Area"}} 
         FNR == 1 {{next}} 
         {{
         fname = FILENAME;
-        sub(/^.*\//, "", fname);  # remove the path of the file
+        sub(/^.*\\//, "", fname);  # remove the path of the file
         print fname,$1,$6}}' {input} > {output}
         """
-
-
-
-
