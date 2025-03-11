@@ -42,29 +42,36 @@ all_cells <- all_cells %>%
     mutate(FoldChange=Area/mean_cp2) # Calculate the fold change
 
 ## Plot ----
-fold_change_plot <- human_score %>%
-    ggplot(aes(x=PaccArea, y=FoldChange, fill = Pathologist, 
-               shape=Pathologist)) +
-    geom_point(size=5) +    # Pathologist points
-    geom_point(data=all_cells, aes(x=Area, y=FoldChange, fill='#619CFF'),  
-               alpha=0.5, shape = 21, size=3) + # QuPath detection points smaller
-    geom_hline(yintercept = c(mean_cps$foldchange,1), linetype = c("dashed","dotdash"), 
-               color = c("#A50026","#E08214"), size=2) + # Reference lines
-    labs(x = "Nuclear Area", y = 'Area Fold Change', fill= 'Type', shape="Type", 
-         title = "")+   # Labels
-    scale_shape_manual(values = c(21, 24),  # Change shapes of points
-                       labels = c("ECCs Pathologist 1 (n=96)", 
-                                  "ECCs Pathologist 2 (n=134)")) +  # Legend labels
-    scale_fill_manual(values = c('#619CFF','#FFFF99', "#CAB2D6"))+  # Fill colors
-    scale_y_continuous(breaks = seq(0, 9, by = 1)) +    # Y axis breaks
-    guides(fill="none" , # Remove the fill legend (it breaks because of the all cells dots)
-           shape = guide_legend(override.aes = list(fill = c('#FFFF99', "#CAB2D6")))) +  # Add fill legend by shape
-    
-    # Increase the font and reposition the legend inside the plot
-    theme_classic(base_size = 30)+
-    theme(legend.position = c(0.82,0.26),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 18))
+
+fold_change_plot <- human_score %>% 
+    ggplot(aes(x=Pathologist, y=FoldChange, fill=Pathologist))+
+    geom_violin(trim=FALSE) +
+    scale_fill_manual(values = c('#FFFF99', "#CAB2D6"))+  # Fill colors
+    theme_classic()
+
+# fold_change_plot <- human_score %>%
+#     ggplot(aes(x=PaccArea, y=FoldChange, fill = Pathologist, 
+#                shape=Pathologist)) +
+#     geom_point(size=5) +    # Pathologist points
+#     geom_point(data=all_cells, aes(x=Area, y=FoldChange, fill='#619CFF'),  
+#                alpha=0.5, shape = 21, size=3) + # QuPath detection points smaller
+#     geom_hline(yintercept = c(mean_cps$foldchange,1), linetype = c("dashed","dotdash"), 
+#                color = c("#A50026","#E08214"), size=2) + # Reference lines
+#     labs(x = "Nuclear Area", y = 'Area Fold Change', fill= 'Type', shape="Type", 
+#          title = "")+   # Labels
+#     scale_shape_manual(values = c(21, 24),  # Change shapes of points
+#                        labels = c("ECCs Pathologist 1 (n=96)", 
+#                                   "ECCs Pathologist 2 (n=134)")) +  # Legend labels
+#     scale_fill_manual(values = c('#619CFF','#FFFF99', "#CAB2D6"))+  # Fill colors
+#     scale_y_continuous(breaks = seq(0, 9, by = 1)) +    # Y axis breaks
+#     guides(fill="none" , # Remove the fill legend (it breaks because of the all cells dots)
+#            shape = guide_legend(override.aes = list(fill = c('#FFFF99', "#CAB2D6")))) +  # Add fill legend by shape
+#     
+#     # Increase the font and reposition the legend inside the plot
+#     theme_classic(base_size = 30)+
+#     theme(legend.position = c(0.82,0.26),
+#           legend.title = element_text(size = 18),
+#           legend.text = element_text(size = 18))
 
 # Save the file
 ggsave(output_file, fold_change_plot, width = 390, height=240, units = "mm")
