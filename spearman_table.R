@@ -111,6 +111,7 @@ rho <- round(spearman_test$estimate, 3)
 p_value <- c(p.value=spearman_test$p.value)
 print(rho)
 print(p_value)
+
 ## NHG ----
 group_summary <- patient_data %>%
     filter(!is.na(hist_gra)) %>% 
@@ -161,6 +162,7 @@ rho <- round(spearman_test$estimate, 3)
 p_value <- c(p.value=round(spearman_test$p.value, 3))
 print(rho)
 print(p_value)
+
 ## PR ----
 group_summary <- patient_data %>%
     filter(!is.na(pgr_pos)) %>% 
@@ -265,6 +267,12 @@ p_value <- c(p.value=round(spearman_test$p.value, 3))
 print(rho)
 print(p_value)
 
+patient_data %>% 
+    ggplot(aes(x=PACC, fill=as.factor(atypia))) +
+    geom_bar(position = "dodge") +
+    labs(fill="Atypia", x = "ECC score") +
+    theme_classic()
+
 ## Grade markers - mitosis ----
 group_summary <- patient_data %>%
     filter(!is.na(mitosis)) %>% 
@@ -284,6 +292,12 @@ stratified_summary <- patient_data %>%
     ) %>%
     ungroup()
 print(stratified_summary)
+
+patient_data %>% 
+    ggplot(aes(x=PACC, fill=as.factor(mitosis))) +
+    geom_bar(position = "dodge") +
+    labs(fill="Mitosis", x = "ECC score") +
+    theme_classic()
 
 spearman_test <- cor.test(patient_data$mitosis, patient_data$PACC, method = "spearman")
 rho <- round(spearman_test$estimate, 3)
@@ -316,6 +330,12 @@ rho <- round(spearman_test$estimate, 3)
 p_value <- c(p.value=round(spearman_test$p.value, 3))
 print(rho)
 print(p_value)
+
+patient_data %>% 
+    ggplot(aes(x=PACC, fill=as.factor(tubuli))) +
+    geom_bar(position = "dodge") +
+    labs(fill="Tubular formation", x = "ECC score") +
+    theme_classic()
 
 ## Adjuvant therapy ----
 group_summary <- patient_data %>%
