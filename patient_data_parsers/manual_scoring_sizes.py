@@ -17,7 +17,7 @@ gmm_pattern = re.compile(  # Compile the pattern for gmm table.
     \d+\.\d+\t    # Variance component 1
     \d+\.\d+\t    # Variance component 2
     (0\.\d+)\t  # proportion component 1 - group 5
-    (0\.\d+)$  # proportion component 2 - group 6
+    (0\.\d+)\t  # proportion component 2 - group 6
     """,
     re.VERBOSE  # VERBOSE ignores the whitespaces inside the raw string. Makes it more visual.
 )
@@ -46,7 +46,6 @@ with open(gmm_file, 'r')as gmm:
             mean_comp2 = float(match.group(4))
             prop_comp1 = float(match.group(5))
             prop_comp2 = float(match.group(6))
-
         if parent not in gmm_dictionary:
             gmm_dictionary[parent] = {}  # Create a dictionary key with the TMA number, and a nested dictionary as value 
         

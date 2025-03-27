@@ -14,7 +14,7 @@ survival_km <- function(patient_df, grade=0, label) {
     if (!grade %in% c(1,2,3)) {
         grade <- c(1,2,3, NA)
     } else {
-        label <- paste0(label,": grade ", grade)   
+        label <- paste0(label,": NHG ", grade)   
     }
     
     censor_yr <- 15
@@ -50,12 +50,14 @@ survival_km <- function(patient_df, grade=0, label) {
         add_censor_mark() +
         add_risktable() +
         scale_color_manual(values = c('#619CFF','#F8766D'),
-                           labels = c('ECC 0', 'ECC 2')) +
+                           labels = c('ECC-', 'ECC+')) +
         scale_fill_manual(values = c('#619CFF','#F8766D'),
-                          labels = c('ECC 0', 'ECC 2'))+
+                          labels = c('ECC-', 'ECC+'))+
         ylim(c(0,1)) +
         annotate("text", x = 2.5, y = 0.65,
-                 label = paste0("Log-rank p = ", round(logrank_test$pvalue, 4)))
+                 label = paste0("Log-rank p = ", round(logrank_test$pvalue, 4))) +
+        theme_classic() +
+        theme(text = element_text(size = 16))
     return(km_plot)
 }
 
@@ -69,7 +71,7 @@ recurrence_km <- function(patient_df, grade=0,
             grade <- c(1,2,3, NA)
             label <- paste0(label,": ",rec_type)
     } else {
-            label <- paste0(label,": ",rec_type, " - grade", grade)   
+            label <- paste0(label,": NHG ", grade)   
         }
 
     censor_yr <- 10
@@ -112,23 +114,25 @@ recurrence_km <- function(patient_df, grade=0,
         ggsurvfit() +
         labs(title = label,
              x = 'Time (years)',
-             y = 'Recurrence-free Remission Probability') +
+             y = 'Recurrence-free Survival Probability') +
         add_censor_mark() +
         add_risktable() +
         scale_color_manual(values = c('#619CFF','#F8766D'),
-                          labels = c('ECC 0', 'ECC 2')) +
+                          labels = c('ECC-', 'ECC+')) +
         scale_fill_manual(values = c('#619CFF','#F8766D'),
-                         labels = c('ECC 0', 'ECC 2'))+
+                         labels = c('ECC-', 'ECC+'))+
         ylim(c(0,1)) +
         annotate("text", x = 2.5, y = 0.65,
-                 label = paste0("Log-rank p = ", round(logrank_rec$pvalue, 4)))
+                 label = paste0("Log-rank p = ", round(logrank_rec$pvalue, 4))) +
+        theme_classic() +
+        theme(text = element_text(size = 16))
     return(km_plot)
 }
 
 dir <- "~/PACC/TMA/Results/"
 tables <- paste0(dir, "ManualScoreTables/")
-plot_dir_surv <- paste0(dir, "SurvPlots/OnlyGrade1and2/")
-plot_dir_rec <- paste0(dir, "SurvPlots/OnlyGrade1and2/")
+plot_dir_surv <- paste0(dir, "SurvPlots/Updated/")
+plot_dir_rec <- paste0(dir, "SurvPlots/Updated/")
 patient_data <- read_tsv(paste0(dir,
     "all_patient_unique_with_pacc_full_score_new.csv"), na="#NULL!") %>%
     mutate(PACC=as.integer(PACC)) %>% 
@@ -161,7 +165,7 @@ for (i in c(0,1,2,3)) {
     surv_plot <- survival_km(patient_df = patient_data, 
                              label="Kaplan-Meier Survival Curve", grade=i)
     filename <- paste0(
-        "~/PACC/TMA/Manuscript/KMPlots/survival_km_plot_grade", 
+        plot_dir_surv,"survival_km_plot_grade", 
         i, ".tif")        
     
     ggsave(filename, surv_plot, width = 6, height =6, units = "in")
@@ -169,12 +173,11 @@ for (i in c(0,1,2,3)) {
 
 ## Recurrence plots ----
 for (i in c(0,1,2,3)) {
-    for (type in c("overall", "local", "distant")) {
+    for (type in c("overall")) {
             overall <- recurrence_km(patient_df = patient_data, 
                                      rec_type = type,
-                                     label="Kaplan-Meier RFR Curve", grade=i)
-            filename <- paste0(
-                "~/PACC/TMA/Manuscript/KMPlots/", type,
+                                     label="Kaplan-Meier RFS Curve", grade=i)
+            filename <- paste0(plot_dir_surv, type,
                 "_rec_km_plot_grade", 
                 i, ".tif")        
             

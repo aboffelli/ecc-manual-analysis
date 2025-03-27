@@ -18,11 +18,20 @@ custom_theme <- function(){theme_minimal() +
 surv_hr <- function(patient_df, grade=0, label) {
     # Select the variable to be included in the regression
     if (grade %in% c(1,2,3)) {  # If one grade is selected, remove it from the regression
-        explanatory   <- c("age", "PACC_YN", "recgrp_h", "tumsize")
-        os_label <- paste("Overall Survival: Grade", grade)
+        explanatory   <- c("age", 
+                           "rt_treat", 
+                           "PACC_YN", 
+                           "recgrp", 
+                           "tumsize")
+        os_label <- paste("Overall Survival: NHG ", grade)
     } else {  # Include grade in the regression if using all grades
         grade = c(1,2,3)
-        explanatory   <- c("age", "PACC_YN", "hist_gra", "recgrp_h", "tumsize")
+        explanatory   <- c("age", 
+                           "rt_treat",
+                           "PACC_YN", 
+                           "hist_gra", 
+                           "recgrp", 
+                           "tumsize")
         os_label <- paste("Overall Survival")
     }
     
@@ -41,7 +50,7 @@ surv_hr <- function(patient_df, grade=0, label) {
             surv_dec = if_else(surv_dec > censor_yr, censor_yr, surv_dec),
         ) %>% 
         filter(!is.na(hist_gra),  # Filter these out if using multivariate.
-               !is.na(recgrp_h),
+               !is.na(recgrp),
                !is.na(tumsize),
                hist_gra %in% grade) %>%
         droplevels()
@@ -73,26 +82,17 @@ surv_hr <- function(patient_df, grade=0, label) {
                 ff_label("Radiotherapy"),
             
             hist_gra=factor(hist_gra) %>%
-                fct_recode(
-                    "Grade 1" = "1",
-                    "Grade 2" = "2",
-                    "Grade 3" = "3"
-                ) %>%
-                ff_label("Histology Grade"),
+                ff_label("NHG"),
             
-            recgrp_h=factor(recgrp_h) %>%
+            recgrp=factor(recgrp) %>%
                 fct_recode(
                     "Luminal A" = "1",
-                    "Luminal B (HER2-)" = "2",
-                    "HER2+" = "3",
-                    "Triple Negative" = "4"
+                    "Luminal B" = "2",
+                    "HER2" = "3",
+                    "TN" = "4"
                 ) %>%
-                ff_label("Cancer type"),
+                ff_label("Cancer subtype"),
             tumsize=ff_label(as.numeric(tumsize), "Tumor size"),
-            adjbeh = factor(adjbeh) %>% 
-                fct_recode("No" = "0",
-                           "Yes" = "1") %>% 
-                ff_label("Adjuvant therapy"),
             PACC_YN=factor(PACC_YN) %>% 
                 fct_recode("-"= "0",
                            "+" = "1") %>% 
@@ -123,7 +123,7 @@ surv_hr <- function(patient_df, grade=0, label) {
                 map(~ surv_df_15 %>%
                         coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")), 
                               data = .) %>%
-                        fit2df(estimate_suffix = " (DSS CPH univariable)")
+                        fit2df(estimate_suffix = " CPH univariable")
                 )%>%
                 bind_rows()
         ) %>%
@@ -131,13 +131,13 @@ surv_hr <- function(patient_df, grade=0, label) {
         ff_merge(
             surv_df_15 %>%
                 coxphmulti(dependent_dss, explanatory) %>%
-                fit2df(estimate_suffix = " (DSS CPH multivariable)")
+                fit2df(estimate_suffix = " CPH multivariable")
         ) %>%
         # Fine and Gray competing risks regression
         ff_merge(
             surv_df_15 %>%
                 crrmulti(dependent_crr, explanatory) %>%
-                fit2df(estimate_suffix = " (competing risks multivariable)")
+                fit2df(estimate_suffix = " competing risks multivariable")
         ) %>%
         select(-fit_id,-index) %>%
         dependent_label(surv_df_15, label)
@@ -148,11 +148,20 @@ surv_hr <- function(patient_df, grade=0, label) {
 
 rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
     if (grade %in% c(1,2,3)) {
-        explanatory   <- c("age", "rt_treat", "PACC_YN", "recgrp_h", "tumsize")
-        or_label <- paste("Overall Recurrence: Grade", grade)
+        explanatory   <- c("age", 
+                           "rt_treat", 
+                           "PACC_YN", 
+                           "recgrp", 
+                           "tumsize")
+        or_label <- paste("Overall Recurrence: NHG ", grade)
     } else {
         grade = c(1,2,3)
-        explanatory   <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp_h", "tumsize")
+        explanatory   <- c("age",
+                           "rt_treat", 
+                           "PACC_YN", 
+                           "hist_gra", 
+                           "recgrp", 
+                           "tumsize")
         or_label <- "Overall Recurrence"
     }
     
@@ -168,7 +177,7 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
         mutate(ev1typ20 = if_else(rfs_ny > censor_yr, 0, ev1typ20),
                rfs_upd = if_else(rfs_ny > censor_yr, censor_yr, rfs_ny)) %>% 
         filter(!is.na(hist_gra),  # Filter these out if using multivariate.
-               !is.na(recgrp_h),
+               !is.na(recgrp),
                !is.na(tumsize),
                hist_gra %in% grade
                ) %>%
@@ -185,24 +194,17 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
                 ff_label("Radiotherapy"),
             
             hist_gra=factor(hist_gra) %>%
-                fct_recode("Grade 1" = "1",
-                           "Grade 2" = "2",
-                           "Grade 3" = "3") %>%
-                ff_label("Histology Grade"),
+                ff_label("NHG"),
             
-            recgrp_h=factor(recgrp_h) %>%
+            recgrp=factor(recgrp) %>%
                 fct_recode(
                     "Luminal A" = "1",
-                    "Luminal B (HER2-)" = "2",
-                    "HER2+" = "3",
-                    "Triple Negative" = "4"
+                    "Luminal B" = "2",
+                    "HER2" = "3",
+                    "TN" = "4"
                 ) %>%
-                ff_label("Cancer type"),
+                ff_label("Cancer subtype"),
             tumsize=ff_label(as.numeric(tumsize), "Tumor size"),
-            adjbeh = factor(adjbeh) %>% 
-                fct_recode("No" = "0",
-                           "Yes" = "1") %>% 
-                ff_label("Adjuvant therapy"),
             PACC_YN=factor(PACC_YN) %>% 
                 fct_recode("-"= "0",
                            "+" = "1") %>% 
@@ -269,7 +271,7 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
                 map(~ rec_df_10 %>%
                         coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")), 
                               data = .) %>%
-                        fit2df(estimate_suffix = " (DSS CPH univariable)")
+                        fit2df(estimate_suffix = " CPH univariable")
                 )%>%
                 bind_rows()
         ) %>%
@@ -277,13 +279,13 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
         ff_merge(
             rec_df_10 %>%
                 coxphmulti(dependent_dss, explanatory) %>%
-                fit2df(estimate_suffix = " (DSS CPH multivariable)")
+                fit2df(estimate_suffix = " CPH multivariable")
         ) %>%
         # Fine and Gray competing risks regression
         ff_merge(
             rec_df_10 %>%
                 crrmulti(dependent_crr, explanatory) %>%
-                fit2df(estimate_suffix = " (competing risks multivariable)")
+                fit2df(estimate_suffix = " competing risks multivariable")
         ) %>%
         select(-fit_id, -index) %>%
         dependent_label(rec_df_10, label)
@@ -300,9 +302,9 @@ patient_data <- read_tsv(paste0(dir,
                                 "all_patient_unique_with_pacc_full_score_new.csv"),
                          na = "#NULL!") %>%
     mutate(PACC=if_else(PACC=="NA", NA, as.integer(PACC)),
-           PACC_YN = if_else(PACC == 0, 0, 1),
+           PACC_YN = if_else(PACC == 2, 1, 0),
            hist_gra=as.factor(hist_gra),
-           recgrp_h=as.factor(recgrp_h),
+           recgrp=as.factor(recgrp),
            tumsize=as.numeric(tumsize),
            adjbeh = as.factor(adjbeh)
            
@@ -318,8 +320,8 @@ censor_yr <- 15
 all_grades <- surv_hr(patient_df = patient_data,
                      label = "Survival")
 
-write_tsv(all_grades[[1]], paste0(dir,"SurvPlots/PACC0_12/os_with_grade.csv"))
-write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/surv_with_grade.csv"))
+write_tsv(all_grades[[1]], paste0(dir,"HazardRatio/os_with_grade.csv"))
+write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/surv_with_grade.csv"))
 
 for (i in c(1,2,3)) {
     new_table <- surv_hr(patient_df = patient_data,
@@ -327,9 +329,9 @@ for (i in c(1,2,3)) {
                          label = paste("Survival: Grade",i))
     
     write_tsv(new_table[[1]],
-              paste0(dir,"SurvPlots/PACC0_12/os_with_grade",i,".csv"))
-    # write_tsv(new_table[[2]],
-    #           paste0(dir,"SurvPlots/PACC0_12/surv_with_grade",i,".csv"))
+              paste0(dir,"HazardRatio/os_with_grade",i,".csv"))
+    write_tsv(new_table[[2]],
+              paste0(dir,"HazardRatio/surv_with_grade",i,".csv"))
 }
 
 ## Overall and Local Recurrence ----
@@ -339,29 +341,29 @@ all_grades <- rec_hr(patient_data, grade = 0,
                               local = T)
 gt(all_grades[[1]])
 
-write_tsv(all_grades[[1]], paste0(dir,"SurvPlots/PACC0_12/or_with_grade.csv"))
-write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/lr_with_grade.csv"))
+write_tsv(all_grades[[1]], paste0(dir,"HazardRatio/or_with_grade.csv"))
+#write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/lr_with_grade.csv"))
 # Local recurrence for all grades separately
 for (i in c(1,2,3)) {
-    new_table <- rec_hr(patient_data, grade = i, 
+    new_table <- rec_hr(patient_data, grade = i,
                               label = paste("Local recurrence: Grade", i),
                               local = TRUE)
-    
-    write_tsv(new_table[[1]], paste0(dir,"SurvPlots/PACC0_12/or_with_grade",i,".csv"))
-    write_tsv(new_table[[2]], paste0(dir,"SurvPlots/PACC0_12/lr_with_grade",i,".csv"))
+
+    write_tsv(new_table[[1]], paste0(dir,"HazardRatio/or_with_grade",i,".csv"))
+    #write_tsv(new_table[[2]], paste0(dir,"HazardRatio/lr_with_grade",i,".csv"))
 }
 
 
 
 ## Distant recurrence table ----
-all_grades <- rec_hr(patient_data, grade = 0, 
-                              label = "Distant recurrence",
-                              local = F)
-write_tsv(all_grades[[2]], paste0(dir,"SurvPlots/PACC0_12/dr_with_grade.csv"))
-for (i in c(1,2,3)) {
-    dist_table <- rec_hr(patient_data, grade = i, 
-                                 label = paste("Distant recurrence: Grade", i),
-                                 local = FALSE)
-    
-    write_tsv(dist_table[[2]], paste0(dir,"SurvPlots/PACC0_12/dr_with_grade",i,".csv"))
-}
+# all_grades <- rec_hr(patient_data, grade = 0, 
+#                               label = "Distant recurrence",
+#                               local = F)
+# write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/dr_with_grade.csv"))
+# for (i in c(1,2,3)) {
+#     dist_table <- rec_hr(patient_data, grade = i, 
+#                                  label = paste("Distant recurrence: Grade", i),
+#                                  local = FALSE)
+#     
+#     write_tsv(dist_table[[2]], paste0(dir,"HazardRatio/dr_with_grade",i,".csv"))
+# }

@@ -5,6 +5,7 @@ library(ggbeeswarm)
 setwd("/home/aboffelli/PACC/TMA/Results/")
 ##---- Human
 human_score <- read_tsv("ManualScoreTables/ecc_fold_change.txt")
+n_cells <- table(human_score$Pathologist)
 gmm_table <- read_tsv("QuPathScoreTables/gmm_table.txt")
 mean_cps <-gmm_table %>% 
     summarize(
@@ -38,8 +39,11 @@ fold_change_plot <- human_score %>%
     labs(x = "Nuclear Area", y = 'Area Fold Change', fill= 'Type', shape="Type", 
          title = "")+
     scale_shape_manual(values = c(21, 24),
-                       labels = c("ECCs Pathologist 1 (n=96)", 
-                                  "ECCs Pathologist 2 (n=134)")) +
+                       labels = c(paste0("ECCs Pathologist 1 (n=", 
+                                        n_cells["Pathologist 1"], ")"),
+                                  paste0("ECCs Pathologist 2 (n=", 
+                                               n_cells["Pathologist 2"], ")")
+                                  )) +
     scale_fill_manual(values = c('#619CFF','#FFFF99', "#CAB2D6"))+
     scale_y_continuous(breaks = seq(0, 9, by = 1)) +
     guides(fill="none" , # Remove the fill legend
@@ -50,4 +54,4 @@ fold_change_plot <- human_score %>%
           legend.text = element_text(size = 18)); test
 
 
-ggsave("~/PACC/TMA/Manuscript/pathologist_scatterplot.tif", fold_change_plot, width = 390, height=240, units = "mm")
+ggsave("~/PACC/TMA/Results/pathologist_scatterplot.tif", fold_change_plot, width = 390, height=240, units = "mm")
