@@ -35,13 +35,13 @@ with open("/home/aboffelli/PACC/TMA/Results/ManualScoreTables/complete_patho_res
 
         if pacc:
             if len(pacc)>1:
-              """
-              Since the pathologists filled the table, sometimes there is text together 
-              with the score, e.g. "2?", or "1 good".
-              So we try to extract the first caracter and transform it into int.
-              Since we can't account for all the possibilities, if the first character is not a number,
-              we treat it as an NA.
-              """
+                """
+                Since the pathologists filled the table, sometimes there is text together 
+                with the score, e.g. "2?", or "1 good".
+                So we try to extract the first caracter and transform it into int.
+                Since we can't account for all the possibilities, if the first character is not a number,
+                we treat it as an NA.
+                """
                 try:
                     pacc = int(pacc[0])
                 except ValueError:
