@@ -2,7 +2,7 @@ import re
 
 # Set the path for the files
 filename = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/merged_ecc_sizes.txt'
-output = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/ecc_fold_change.txt'
+output = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/ecc_fold_change.csv'
 gmm_file = '/home/aboffelli/PACC/TMA/Results/QuPathScoreTables/gmm_table.txt'
 
 
@@ -18,6 +18,7 @@ gmm_pattern = re.compile(  # Compile the pattern for gmm table.
     \d+\.\d+\t    # Variance component 2
     (0\.\d+)\t  # proportion component 1 - group 5
     (0\.\d+)\t  # proportion component 2 - group 6
+    (\d+\.\d+)\t  # 99th percentile - group 7
     """,
     re.VERBOSE  # VERBOSE ignores the whitespaces inside the raw string. Makes it more visual.
 )
@@ -46,6 +47,7 @@ with open(gmm_file, 'r')as gmm:
             mean_comp2 = float(match.group(4))
             prop_comp1 = float(match.group(5))
             prop_comp2 = float(match.group(6))
+            perc_99 = float(match.group(7))
         if parent not in gmm_dictionary:
             gmm_dictionary[parent] = {}  # Create a dictionary key with the TMA number, and a nested dictionary as value 
         
@@ -56,15 +58,15 @@ with open(gmm_file, 'r')as gmm:
             This avoids using a very high mean when the core has many big cells in a 
             non bi-modal distribution.
             """
-            cancer_cell_mean = mean_comp2  # Use the 2nd comp mean if the proportion is > 0.1
+            cancer_cell_mean = (mean_comp2, perc_99)  # Use the 2nd comp mean if the proportion is > 0.1
         else:
-            cancer_cell_mean = mean_comp1  # Use the 1st comp mean if the proportion is <= 0.1
+            cancer_cell_mean = (mean_comp1, perc_99)  # Use the 1st comp mean if the proportion is <= 0.1
         
-        gmm_dictionary[parent][core_id] = round(cancer_cell_mean,2)  # Add the mean to the dictionary as {TMA:{Core: mean}}
+        gmm_dictionary[parent][core_id] = cancer_cell_mean  # Add the mean and 99th percentile to the dictionary as {TMA:{Core: (mean, 99_perc)}}
 
 
 with open(filename) as sizes, open(output,'w') as out:
-    print('Pathologist\tParent\tCore\tCoreMean\tPaccArea\tFoldChange', file=out)  # Print the header in the output file.
+    print('Pathologist\tParent\tCore\tCoreMean\t99thPercentile\tECCArea\tFoldChange', file=out)  # Print the header in the output file.
     for line in sizes:
         match = size_pattern.search(line)  # Match the line on the manual size file.
         if match:
@@ -73,14 +75,13 @@ with open(filename) as sizes, open(output,'w') as out:
             parent = match.group(2)
             core_id = match.group(3)
             ecc_list = match.group(4).strip().split("\t")
-            core_mean = gmm_dictionary.get(parent, {}).get(core_id, {})  # Get the mean from the gmm dict using the TMA and core number.
+            core_mean, p_99 = gmm_dictionary.get(parent, {}).get(core_id, {})  # Extract the mean and 99th percentile from the gmm dict using the TMA and core number.
             
             for size in ecc_list:
                 size = float(re.sub(",",".", size))  # Fix the decimal ponctuation, change from "," to ".".
                 
                 if core_mean:
                     fold_change = round(size/core_mean, 2)  # Calculate the fold change 
-                print(f"""{patho}\t{parent}\t{core_id}\t{core_mean}\
-\t{size}\t{fold_change}""", file=out)  # Print to output file
+                print(f"""{patho}\t{parent}\t{core_id}\t{round(core_mean, 2)}\t\
+{round(p_99, 2)}\t{size}\t{fold_change}""", file=out)  # Print to output file
     
-
