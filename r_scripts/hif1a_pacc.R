@@ -3,6 +3,8 @@ library(RColorBrewer)
 library(chisq.posthoc.test)
 options(scipen = 99)
 options(digits = 22)
+
+# Function to transform the percentages labels in integers.
 map_percent_to_numeric <- function(x) {
     case_when(
         x == "0%" ~ 0,
@@ -14,6 +16,7 @@ map_percent_to_numeric <- function(x) {
     )
 }
 
+# Function to retrieve the highest number
 calculate_max <- function(x) {
     if (all(is.na(x))) {
         return(NA)
@@ -22,173 +25,107 @@ calculate_max <- function(x) {
     }
 }
 
+# Set the directory variable to avoid retyping it
 dir <- "~/PACC/TMA/Results/"
+
+# Load the patient data that contains the TMA numbers
 data <- read_tsv(paste0(dir,
                         "all_patients_with_TMA_PACC_new.csv"),na = "#NULL!") %>%
-    mutate(hist_gra=as.integer(hist_gra)) %>% 
-    filter(exkl == 0) %>% 
+    mutate(hist_gra=as.integer(hist_gra)) %>%  # Make the grade into integer.
+    filter(exkl == 0) %>%  # Filter only patients that were used in the original study.
     droplevels() %>% 
-    mutate(PARENT=paste0(PARENT,"A"))
+    mutate(PARENT=paste0(PARENT,"A"))  # Add an "A" to the TMA number to match the other file.
 
+# Load the hif scores file
 hif1A_data <- read_tsv("~/PACC/TMA/Data/Tables/ImunoStainings/hif_scores_merged.csv") 
 
+# Merge the data based on the Core ID and TMA number (PARENT).
 patient_data_with_hif <- merge(data, hif1A_data, 
                                by = c("ID", "PARENT"), all.x = TRUE) %>% 
+
+    # Rename columns to make our life easier.
     rename(HIF1A_NUCLEI=`FERNO_SWEBCG_HIF1A Nuclei`,
            HIF1A_NUCLEI_INT= `FERNO_SWEBCG_HIF1A INT Nuclei`)
 
+
 PACC_HIF <- patient_data_with_hif %>% 
-    filter(tumor==1) %>% 
+    
+    # Filter only primary tumor.
+    filter(tumor==1) %>%
+
+    # Select only patient number, core ID, TMA number and the HIF scores. 
     select(patnr, ID, PARENT, contains("HIF1A_")) %>% 
+
     group_by(patnr) %>% 
+
+    # Calculate the max score for each patient using the custom function.
     summarize(HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
               HIF1A_NUCLEI_INT = calculate_max(HIF1A_NUCLEI_INT)) %>% 
+
+    # Merge the HIF score using area and intensity scores
     mutate(
         HIF1A_ACTIVATION = case_when(
-        HIF1A_NUCLEI <= 1 & HIF1A_NUCLEI_INT <=1 ~ 0,
-        HIF1A_NUCLEI == 1 & HIF1A_NUCLEI_INT >=2 ~ 1,
-        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT == 1 ~ 1,
-        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT >= 2 ~ 2)
+
+        HIF1A_NUCLEI <= 1 & HIF1A_NUCLEI_INT <=1 ~ 0,   # area and intesity lower or equal to 1-10%  
+        HIF1A_NUCLEI == 1 & HIF1A_NUCLEI_INT >=2 ~ 1,   # area between 1-10% and intensity equal or over than 11-50%
+        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT == 1 ~ 1,  # area equal or over than 11-50% and intesity between 1-10%
+        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT >= 2 ~ 2)  # area and intesity equal or over than 11-50%
         )
 
+## Plot ----
 
-test <- PACC_HIF %>% 
-    group_by(PACC_YN, HIF1A_ACTIVATION) %>%
-    summarise(count = n()) %>%
-    mutate(total_count = sum(count),               # Total count within each PACC_YN group
-           percentage = (count / total_count) * 100) %>%
-    drop_na()
-#Box plot with the HIF score
-
+# Bar plot to visualize the percentage of patients are in each group of HIF1A Activation
 p1 <- PACC_HIF %>% 
     group_by(PACC_YN, HIF1A_ACTIVATION) %>%
-    summarise(count = n()) %>%
-    mutate(total_count = sum(count),               # Total count within each PACC_YN group
-           percentage = (count / total_count) * 100) %>%
-    drop_na() %>% 
+    summarise(count = n()) %>%  # Count the number of patients
+    mutate(total_count = sum(count),    # Total count within each PACC_YN group
+           percentage = (count / total_count) * 100) %>%    #Calculate percentage
+    drop_na() %>%   # Remove NAs
+
+    # Barplot of the percentages
     ggplot(aes(x=as.factor(PACC_YN), y=percentage, 
-               fill=as.factor(HIF1A_ACTIVATION)))+
-    geom_bar(stat = "identity", position = "dodge") +
+               fill=as.factor(HIF1A_ACTIVATION)))+  # Fill by HIF1A group
+    
+    geom_bar(stat = "identity", position = "dodge") +   # Bars side by side. 
+    
+    # Change the labels
     labs(title = "",
          x = "ECC Score", 
          y = "Percentage (%)", 
          fill = "HIF1A Activation\nScore") +
-    scale_fill_brewer(palette = "Dark2")+
-    theme_classic(base_size = 20) +
+        
+    scale_fill_brewer(palette = "Dark2")+   # New pallete that is colorblind friendly
+    
+    theme_classic(base_size = 20) +     # Change the theme and increase font size
+    
+    # Put the legend inside the plot and increase the font.
     theme(legend.position = c(0.80, 0.90),
           legend.title = element_text(size = 18),
-          legend.text = element_text(size = 18)); p1
+          legend.text = element_text(size = 18))
 
-
+# Save the tif image
 ggsave("~/PACC/TMA/Manuscript/hif1a_activation_barplot.tif", p1, width=150, height=150, units = 'mm')
-# Save a file with the HIF data.
+
+# Load the patient file with unique patients.
 patient_data <- read_tsv(paste0(dir,
                         "all_patient_unique_with_pacc_full_score_new.csv"),
                  na = "#NULL!") %>%
-    filter(exkl == 0, tumor==1) %>%
+
+    # exclude patients removed from the original study and keep only primary tumor
+    filter(exkl == 0, tumor==1) %>% 
     droplevels()
 
+# Merge the HIF1A data in the patient data
 patient_data_with_hif_merged <- patient_data %>%
     mutate(PACC=as.integer(PACC),
            PACC_YN = if_else(PACC != 2, 0, 2)) %>%
-    left_join(PACC_HIF, by="patnr") %>%
-    relocate(PACC_YN, .after= PACC)
 
+    left_join(PACC_HIF, by="patnr") %>% # Use the patient number to merge
+
+    relocate(PACC_YN, .after= PACC) # Move PACC_YN close to PACC
+
+# Save it as a tab delimited file
 write.table(patient_data_with_hif_merged,
             paste0(dir,
                    "all_patients_with_TMA_PACC_HIF.csv"),
             sep = "\t", row.names = FALSE, quote = FALSE)
-
-
-contingency_table <- table(PACC_HIF$PACC_YN, PACC_HIF$HIF1A_ACTIVATION)
-print("Contingency Table:")
-print(contingency_table)      
-
-# Step 3: Calculate the expected matrix
-expected_matrix <- chisq.test(contingency_table)$expected
-print("Expected Matrix:")
-print(expected_matrix)
-
-# Step 4: Perform chi-square test
-result <- chisq.test(contingency_table, simulate.p.value = TRUE, B = 10000)
-result <- chisq.test(contingency_table)
-print("Chi-square Test Result:")
-print(result)
-
-posthoc_result <- chisq.posthoc.test(contingency_table, method = "bonferroni") %>% 
-    rename(HIF1A_Negative="0", HIF1A_Low="1", HIF1A_High="2") %>% 
-    mutate(Dimension=paste("PACC", Dimension))
-write_tsv(file="~/PACC/TMA/Results/HIF1A/post_hoc_pacc.tab", x=posthoc_result)
-
-## Check HIF1A with hist_gra ----
-HIST_HIF <- patient_data_with_hif %>% 
-    filter(tumor==1) %>% 
-    select(patnr, hist_gra, contains("HIF1A_")) %>% 
-    group_by(patnr) %>% 
-    #mutate(hist_gra= if_else(PACC == "NA", NA, PACC)) %>%  
-    summarize(hist_gra=calculate_max(hist_gra),
-              HIF1A_NUCLEI = calculate_max(HIF1A_NUCLEI),
-              HIF1A_NUCLEI_INT = calculate_max(HIF1A_NUCLEI_INT)) %>% 
-    mutate(HIF1A_ACTIVATION = case_when(
-        HIF1A_NUCLEI <= 1 & HIF1A_NUCLEI_INT <=1 ~ 0,
-        HIF1A_NUCLEI == 1 & HIF1A_NUCLEI_INT >=2 ~ 1,
-        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT == 1 ~ 1,
-        HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT >= 2 ~ 2),
-        HIST_GRA_YN= if_else(hist_gra != 3, 1, 3))
-
-
-contingency_table <- table(HIST_HIF$HIST_GRA_YN, HIST_HIF$HIF1A_ACTIVATION)
-print("Contingency Table:")
-print(contingency_table)      
-
-# Step 3: Calculate the expected matrix
-expected_matrix <- chisq.test(contingency_table)$expected
-print("Expected Matrix:")
-print(expected_matrix)
-
-# Step 4: Perform chi-square test
-result <- chisq.test(contingency_table)
-print("Chi-square Test Result:")
-print(result)
-
-posthoc_result <- chisq.posthoc.test(contingency_table, method = "bonferroni") %>% 
-    rename(HIF1A_Negative="0", HIF1A_high="2") %>% 
-    mutate(Dimension=paste("Grade", Dimension))
-write_tsv(file="~/PACC/TMA/Results/HIF1A/post_hoc_hist.tab", x=posthoc_result)
-
-
-## PACC and Histology grade
-PACC_HIST <- patient_data_with_hif %>% 
-    filter(tumor==1) %>% 
-    select(patnr, PACC, hist_gra) %>% 
-    group_by(patnr) %>% 
-    mutate(PACC= if_else(PACC == "NA", NA, PACC)) %>%  
-    summarize(PACC=calculate_max(PACC),
-              hist_gra=calculate_max(hist_gra)) %>% 
-    mutate(HIST_GRA_YN= if_else(hist_gra != 3, 1, 3),
-           PACC_YN = if_else(PACC != 2, 0, 2))
-
-contingency_table <- table(PACC_HIST$HIST_GRA_YN, PACC_HIST$PACC_YN)
-print(contingency_table)  
-
-expected_matrix <- chisq.test(contingency_table)$expected
-print("Expected Matrix:")
-print(expected_matrix)
-
-# Step 4: Perform chi-square test
-result <- chisq.test(contingency_table)
-print("Chi-square Test Result:")
-print(result)
-
-posthoc_result <- chisq.posthoc.test(contingency_table, method = "bonferroni") %>% 
-    rename(PACC_0="0", PACC_2="2") %>% 
-    mutate(Dimension=paste("Grade", Dimension))
-
-
-print(patient_data_with_hif %>%
-        filter(PACC == 2, HIF1A_NUCLEI >= 2, HIF1A_NUCLEI_INT >= 2) %>%
-        select(PARENT, ID) %>%
-        mutate(
-            PARENT = format(PARENT, justify = "left"),
-            ID = format(ID, justify = "left")
-        ), row.names = F)
