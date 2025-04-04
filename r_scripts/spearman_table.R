@@ -1,13 +1,6 @@
-#---- Kaplan meier curves PACC / no-PACC
+#---- Spearman correlation tests.
 library(tidyverse)
-library(survival)
-library(survminer)
-library(ggsurvfit)
-library(gridExtra)
-library(tidycmprsk)
-library(gtsummary)
-
-options(scipen = 0)
+library(ggpubr)
 
 calculate_percent <- function(column) {
     # Function to calculate the percentage of patients by an specific category passed as an argument.
@@ -44,7 +37,6 @@ patient_data <- read_tsv(
            tumor_size = if_else(tumsize <= 20, "<=20mm", ">20mm")  # Merge tumor sizes
            )  
 
-    
 ## All ----
 
 # Calculate the total amount of patients per ECC group.
@@ -95,6 +87,42 @@ rho <- round(spearman_test$estimate, 3)
 p_value <- c(p.value=spearman_test$p.value)
 print(rho)
 print(p_value)
+
+# Filter only NHG 2 patients for checking group correlation with Ki67 fraction
+ki67_statistics <- patient_data %>% 
+    filter(hist_gra == 2)
+
+# fit the model to check normality
+model <- lm(ki67_fra ~ PACC_YN, data = ki67_statistics)
+plot(model)  # diagnostic plots
+shapiro.test(residuals(model))  # Normality test
+
+# The data is not normally distributed, so we use a non-parametric test.
+# The test can be performed directly in ggplot using ggpubr.
+
+# Plot of the data using violin plots
+ki67_plot <- ki67_statistics %>% 
+    ggplot(aes(x = as.factor(PACC_YN), y = ki67_fra)) +
+    geom_violin(aes(fill=as.factor(PACC_YN))) + # Violin plot
+    
+    stat_compare_means(method = "wilcox.test", # Calculate the Wilcox Rank-Sum Test
+                       label.x = 1.25,   # Adjust the position
+                       size = 8 # Adjust font size
+                       ) +
+    
+    scale_fill_manual(values = c("#B3CDE3", "#FBB4AE")) +   # Change the colors
+    
+    # Change labels
+    scale_x_discrete(labels = c("ECC -", "ECC +")) +    
+    labs(x = "ECC score", y = "Ki67 fraction",
+         title = "Ki67 fraction by ECC group in NHG 2 patients") +
+    
+    theme_classic(base_size = 24) + # Put a clean theme and increase the font.
+    
+    theme(legend.position = "none") # since the y axis already has the labels we can get rid of the color legend.
+
+# Save the tif
+ggsave(paste0(dir, "ki67_grade2.tif"), ki67_plot, width = 10, height =10, units = "in")
 
 ## NHG ----
 
