@@ -72,39 +72,6 @@ PACC_HIF <- patient_data_with_hif %>%
         HIF1A_NUCLEI >= 2 & HIF1A_NUCLEI_INT >= 2 ~ 2)  # area and intesity equal or over than 11-50%
         )
 
-## Plot ----
-
-# Bar plot to visualize the percentage of patients are in each group of HIF1A Activation
-p1 <- PACC_HIF %>% 
-    group_by(PACC_YN, HIF1A_ACTIVATION) %>%
-    summarise(count = n()) %>%  # Count the number of patients
-    mutate(total_count = sum(count),    # Total count within each PACC_YN group
-           percentage = (count / total_count) * 100) %>%    #Calculate percentage
-    drop_na() %>%   # Remove NAs
-
-    # Barplot of the percentages
-    ggplot(aes(x=as.factor(PACC_YN), y=percentage, 
-               fill=as.factor(HIF1A_ACTIVATION)))+  # Fill by HIF1A group
-    
-    geom_bar(stat = "identity", position = "dodge") +   # Bars side by side. 
-    
-    # Change the labels
-    labs(title = "",
-         x = "ECC Score", 
-         y = "Percentage (%)", 
-         fill = "HIF1A Activation\nScore") +
-        
-    scale_fill_brewer(palette = "Dark2")+   # New pallete that is colorblind friendly
-    
-    theme_classic(base_size = 20) +     # Change the theme and increase font size
-    
-    # Put the legend inside the plot and increase the font.
-    theme(legend.position = c(0.80, 0.90),
-          legend.title = element_text(size = 18),
-          legend.text = element_text(size = 18))
-
-# Save the tif image
-ggsave("~/PACC/TMA/Manuscript/hif1a_activation_barplot.tif", p1, width=150, height=150, units = 'mm')
 
 # Load the patient file with unique patients.
 patient_data <- read_tsv(paste0(dir,
@@ -129,3 +96,41 @@ write.table(patient_data_with_hif_merged,
             paste0(dir,
                    "all_patients_with_TMA_PACC_HIF.csv"),
             sep = "\t", row.names = FALSE, quote = FALSE)
+
+## Plot ----
+
+# Bar plot to visualize the percentage of patients are in each group of HIF1A Activation
+p1 <- patient_data_with_hif_merged %>% 
+    mutate(PACC_YN = ifelse(PACC_YN == 0, "-", "+")) %>% 
+    group_by(PACC_YN, HIF1A_ACTIVATION) %>%
+    summarise(count = n()) %>%  # Count the number of patients
+    mutate(total_count = sum(count),    # Total count within each PACC_YN group
+           percentage = (count / total_count) * 100) %>%    #Calculate percentage
+    drop_na() %>%   # Remove NAs
+
+    # Barplot of the percentages
+    ggplot(aes(x=as.factor(PACC_YN), y=percentage, 
+               fill=as.factor(HIF1A_ACTIVATION)))+  # Fill by HIF1A group
+    
+    geom_bar(stat = "identity", position = "dodge") +   # Bars side by side. 
+    geom_text(aes(label = paste0(round(percentage, 1), "%")), 
+              vjust = -0.5,
+              position = position_dodge(width = 0.9),
+              size = 8) +
+    # Change the labels
+    labs(title = "",
+         x = "ECC Score", 
+         y = "Percentage of patients (%)", 
+         fill = "HIF1A Activation\nScore") +
+        
+    scale_fill_brewer(palette = "Dark2")+   # New pallete that is colorblind friendly
+    
+    theme_classic(base_size = 30) +     # Change the theme and increase font size
+    
+    # Put the legend inside the plot and increase the font.
+    theme(legend.position = c(0.85, 0.90),
+          legend.title = element_text(size = 22),
+          legend.text = element_text(size =22))
+
+# Save the tif image
+ggsave("~/PACC/TMA/Manuscript_TMA1/hif1a_activation_barplot.tif", p1, width=250, height=250, units = 'mm')
