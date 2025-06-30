@@ -1,3 +1,4 @@
+source("renv/activate.R")
 ##---- Competing risk regression
 library(tidyverse)
 library(cmprsk)

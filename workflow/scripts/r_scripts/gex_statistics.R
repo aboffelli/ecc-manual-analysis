@@ -1,3 +1,4 @@
+source("renv/activate.R")
 ## Gene expression data
 library(tidyverse)
 library(RColorBrewer)

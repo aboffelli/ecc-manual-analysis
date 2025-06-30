@@ -1,3 +1,4 @@
+source("renv/activate.R")
 suppressMessages(suppressWarnings(library(tidyverse)))
 suppressMessages(suppressWarnings(library(gridExtra)))
 suppressMessages(suppressWarnings(library(grid)))
