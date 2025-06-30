@@ -1,4 +1,5 @@
 ## Gene expression data
+source("renv/activate.R")
 library(tidyverse)
 library(RColorBrewer)
 library(asht)

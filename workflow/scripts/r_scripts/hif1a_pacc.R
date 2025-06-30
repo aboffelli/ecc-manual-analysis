@@ -1,3 +1,4 @@
+source("renv/activate.R")
 suppressMessages(suppressWarnings(library(tidyverse)))
 suppressMessages(suppressWarnings(library(RColorBrewer)))
 #suppressMessages(suppressWarnings(library(chisq.posthoc.test)))

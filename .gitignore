@@ -3,3 +3,5 @@ workflow/results/
 workflow/resources/
 workflow/logs/
 workflow/.snakemake
+/.envrc
+/workflow/.Rprofile

@@ -1,4 +1,5 @@
 ## Chi-square tests
+source("renv/activate.R")
 library(tidyverse)
 library(car)    # For ANOVA
 library(emmeans)
