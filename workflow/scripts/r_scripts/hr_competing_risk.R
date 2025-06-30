@@ -1,5 +1,5 @@
-source("renv/activate.R")
 ##---- Competing risk regression
+source("renv/activate.R")
 library(tidyverse)
 library(cmprsk)
 library(finalfit)

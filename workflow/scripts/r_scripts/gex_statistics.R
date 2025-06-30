@@ -1,5 +1,5 @@
-source("renv/activate.R")
 ## Gene expression data
+source("renv/activate.R")
 library(tidyverse)
 library(RColorBrewer)
 library(asht)

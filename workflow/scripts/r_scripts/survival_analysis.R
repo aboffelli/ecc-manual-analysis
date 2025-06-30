@@ -1,5 +1,5 @@
-source("renv/activate.R")
 ##---- Kaplan meier curves PACC / no-PACC
+source("renv/activate.R")
 library(tidyverse)
 library(survival)
 library(survminer)
