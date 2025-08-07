@@ -7,11 +7,9 @@ We use a pre-trained model available for download in [here](https://github.com/q
 
 ### Running the detection
 
-The first step is to create a project for the TMA, and import the whole TMA image in QuPath.
+The first step is to create a project for the TMA in QuPath.
 
-Open the script ***01_tma_dearrayer.groovy*** in the Script editor (Automate > Script editor), and click Run. This script will detect the TMA columns and rows and save each core as a separate image.
-
-Import all the core images to the QuPath project.
+Open the script ***01_tma_dearrayer.groovy*** in the Script editor (Automate > Script editor), change the path for the TMA file you want to import in line 12 and click Run. The script will import the TMA image and detect the TMA columns and rows. It will then ask you to check and fix the TMA grids if needed and rerun the script. It will then save each core as a separate image and import each image to QuPath.
 
 Open the script ***02_stardist_script.groovy*** and click **Run for project** (on the three dots beside the Run button). Select all your images. Remember to remove the full TMA image from the list, if you did not remove from the project.
 
