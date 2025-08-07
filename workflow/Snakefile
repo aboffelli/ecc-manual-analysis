@@ -22,6 +22,8 @@ rule all:
 
         # Plots ---------------------------------------------------------------
         fold_change_plot = f"{output_dir}/plots/ecc_fc_scatterplot.tif"
+        
+        ## TODO: Plots to be included in the snakemake workflow
         # surv_curve = f"{output_dir}/plots/survival_km_plot_all_grades.tif",
         # rec_curve = f"{output_dir}/plots/overall_rec_km_plot_all_grades.tif",
         # hr_surv = f"{output_dir}/hr/os_with_grade.csv",
