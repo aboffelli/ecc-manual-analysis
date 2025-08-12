@@ -31,7 +31,8 @@ rule all:
         # Calculation of the fold change nuclear area of the ECCs
 
         # Plots ---------------------------------------------------------------
-        fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif"
+        fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
+        gex_boxplot = f"{plot_dir}/gex_boxplot.tif"
         
         ## TODO: Plots to be included in the snakemake workflow
         # surv_curve = f"{plot_dir}/survival_km_plot_all_grades.tif",
@@ -227,3 +228,15 @@ rule fold_change_plot:
         f"{plot_dir}/ecc_fc_scatterplot.tif"
     script:
         "scripts/r_scripts/fold_change_plots.R"
+
+rule gex_statistics:
+    # Generates a boxplot of the gene expression data
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        f"{plot_dir}/gex_boxplot.tif"
+    params:
+        gene = config["config"]["gex_plot_gene"],  # Gene to plot, can be overridden
+        y_label = config["config"]["gex_plot_y_label"],  # Y-axis label for the plot
+    script:
+        "scripts/r_scripts/gex_statistics.R"
