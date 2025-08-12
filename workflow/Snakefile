@@ -1,12 +1,22 @@
 configfile: "config/config.yaml"
 import glob  # Collects file paths using flexible search patterns
 
-# Define a variable for the output directory
+# Variable for the setup directory
+# This directory is used to store a flag file indicating that the workflow setup is complete
+setup_dir = "results/.workflow_setup"
+
+# Define a variable for the output directories
 output_dir = config["output_dir"]
+plot_dir = config["plot_dir"]
+hr_dir = config["hr_dir"]
+
 
 rule all:
     # Specifies the final output files for the workflow
     input:
+        #Setup directory for plots
+        make_plot_dir = f"{setup_dir}/setup_done.txt",
+
         # Tables --------------------------------------------------------------
         final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
         # Patient data table with ECC score, HIF1A activation score, and GEX data
@@ -21,14 +31,30 @@ rule all:
         # Calculation of the fold change nuclear area of the ECCs
 
         # Plots ---------------------------------------------------------------
-        fold_change_plot = f"{output_dir}/plots/ecc_fc_scatterplot.tif"
+        fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif"
         
         ## TODO: Plots to be included in the snakemake workflow
-        # surv_curve = f"{output_dir}/plots/survival_km_plot_all_grades.tif",
-        # rec_curve = f"{output_dir}/plots/overall_rec_km_plot_all_grades.tif",
+        # surv_curve = f"{plot_dir}/survival_km_plot_all_grades.tif",
+        # rec_curve = f"{plot_dir}/overall_rec_km_plot_all_grades.tif",
         # hr_surv = f"{output_dir}/hr/os_with_grade.csv",
         # hr_rec = f"{output_dir}/hr/or_with_grade.csv"
 
+
+rule setup_dirs:
+    """
+    Creates the necessary directories for the workflow and a flag file to indicate setup completion.
+    This rule ensures that the output directories exist before any processing starts.
+    It uses a flag file (`setup_done.txt`) to indicate that the setup has been completed.
+    """
+    output:
+        f"{setup_dir}/setup_done.txt"
+    shell:
+        f"""
+        mkdir -p {setup_dir}
+        mkdir -p {plot_dir}
+        mkdir -p {hr_dir}
+        touch {{output}}
+        """
 
 rule merge_manual_score:
     # Combines all manual scoring CSV files into a single complete results file.
@@ -198,6 +224,6 @@ rule fold_change_plot:
         ecc_fold_change= f"{output_dir}/ecc_fold_change.txt",
         all_cells_area = f"{output_dir}/all_cells_area.txt"
     output:
-        f"{output_dir}/plots/ecc_fc_scatterplot.tif"
+        f"{plot_dir}/ecc_fc_scatterplot.tif"
     script:
         "scripts/r_scripts/fold_change_plots.R"

@@ -8,3 +8,5 @@ input_files:
   ecc_sizes: "resources/ManualScores/*ecc_sizes.csv"
 
 output_dir: results
+plot_dir: results/plots
+hr_dir: results/hr

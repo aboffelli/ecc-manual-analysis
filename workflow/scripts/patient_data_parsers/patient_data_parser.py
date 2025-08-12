@@ -71,9 +71,6 @@ for index, row in result.iterrows():
 # Save the patient-core table with PACC scores
 result.sort_values(by='patnr').to_csv(patient_table_cores,
                                       index=False, sep='\t')
-
-differing_values = patient_df[~patient_df['patnr'].isin(result_unique['patnr'])]
-
 # Create a unique patient table by merging cores and scores for the same patients
 df_unique = result.drop_duplicates(subset=['patnr', 'tumor'])
 df_unique = df_unique.drop(['TMAnr', 'PARENT', 'ID', 'PACC'], axis=1)
