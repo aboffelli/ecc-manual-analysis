@@ -38,11 +38,11 @@ rule all:
         hr_surv = f"{hr_dir}/os_with_grade.csv",
         hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
-        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv"
+        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
         
-        ## TODO: Plots to be included in the snakemake workflow
-        # surv_curve = f"{plot_dir}/survival_km_plot_all_grades.tif",
-        # rec_curve = f"{plot_dir}/overall_rec_km_plot_all_grades.tif",
+        # Survival plots ------------------------------------------------------
+        surv_curves = f"{plot_dir}/survival_km_plots.pdf",
+        rec_curves = f"{plot_dir}/overall_rec_km_plots.pdf"
 
 
 
@@ -120,7 +120,7 @@ rule hif_activation:
         patient_cores = f"{output_dir}/patient_with_core_ecc.txt", # File containing the patient core location
         patient_ecc = f"{output_dir}/all_patient_unique_with_ecc.txt", # File that the HIF1A activation will be added.
         hif1a_data = "resources/hif_scores_merged.csv" # File containing the hif1a data
-    
+    conda: "envs/r_env.yaml"
     output:
         f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt"
 
@@ -177,7 +177,7 @@ rule gmm_table:
     
     output:
         f"{output_dir}/gmm_table.txt"
-    
+    conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/gaussian_mixture.R"
 
@@ -231,6 +231,7 @@ rule fold_change_plot:
         all_cells_area = f"{output_dir}/all_cells_area.txt"
     output:
         f"{plot_dir}/ecc_fc_scatterplot.tif"
+    conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/fold_change_plots.R"
 
@@ -240,6 +241,7 @@ rule gex_statistics:
         patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
     output:
         f"{plot_dir}/gex_boxplot.tif"
+    conda: "envs/r_env.yaml"
     params:
         gene = config["config"]["gex_plot_gene"],  # Gene to plot, can be overridden
         y_label = config["config"]["gex_plot_y_label"],  # Y-axis label for the plot
@@ -255,7 +257,6 @@ rule hr_statistics:
         patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
     output:
         hr_surv = f"{hr_dir}/os_with_grade.csv",
-        ## TODO: Fix the script to handle all grades separately
         hr_surv_grade_1 = f"{hr_dir}/os_grade1.csv",
         hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_surv_grade_3 = f"{hr_dir}/os_grade3.csv",
@@ -263,5 +264,20 @@ rule hr_statistics:
         hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
         hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
         hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv"
+    conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/hr_competing_risk.R"
+
+rule hr_survival_plots:
+    """Generates survival plots for overall survival and recurrence."""
+
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    
+    output:
+        surv_dist = f"{plot_dir}/death_by_brca.tif",
+        surv_curves = f"{plot_dir}/survival_km_plots.pdf",
+        rec_curves = f"{plot_dir}/overall_rec_km_plots.pdf"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/survival_analysis.R"

@@ -306,8 +306,6 @@ suppressMessages(suppressWarnings({
 
     # Output files for survival
     out_surv = snakemake@output[["hr_surv"]]
-
-    ## TODO: Fix the script to handle all grades separately
     out_surv_grade1 = snakemake@output[["hr_surv_grade_1"]]
     out_surv_grade2 = snakemake@output[["hr_surv_grade_2"]]
     out_surv_grade3 = snakemake@output[["hr_surv_grade_3"]]

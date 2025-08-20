@@ -4,6 +4,9 @@
 suppressMessages(suppressWarnings({
     library(tidyverse)
     library(RColorBrewer)
+    if (!requireNamespace("asht", quietly = TRUE)) {
+        install.packages("asht", repos = "https://cloud.r-project.org")
+        }
     library(asht)
     options(scipen=0)
 
