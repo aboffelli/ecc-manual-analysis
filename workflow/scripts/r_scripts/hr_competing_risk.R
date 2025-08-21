@@ -2,6 +2,7 @@
 
 # Suppress messages and warnings from the whole script to keep snakemake output clean
 suppressMessages(suppressWarnings({
+    source("renv/activate.R")
     library(tidyverse)
     library(cmprsk)
     library(finalfit)

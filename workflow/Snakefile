@@ -122,7 +122,8 @@ rule hif_activation:
         hif1a_data = "resources/hif_scores_merged.csv" # File containing the hif1a data
     conda: "envs/r_env.yaml"
     output:
-        f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt"
+        f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt",
+        f"{plot_dir}/hif1a_activation_barplot.tif"
 
     script:
         "scripts/r_scripts/hif1a_pacc.R"
