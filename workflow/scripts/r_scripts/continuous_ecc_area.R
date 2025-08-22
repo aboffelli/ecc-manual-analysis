@@ -31,7 +31,7 @@ suppressMessages(suppressWarnings({
         as.numeric()
     }
 
-    df = data.frame(
+    df <- data.frame(
       pathologist = pathologist, tma = tma, sample = sample, paccs = paccs
     )
   }
@@ -39,7 +39,7 @@ suppressMessages(suppressWarnings({
   tidy <- input_file |>
     readLines() |>
     lapply(parse_line) |>
-    Reduce(rbind, x=_)
+    Reduce(rbind, x = _)
 
   write.csv(tidy, output_file)
 }))
