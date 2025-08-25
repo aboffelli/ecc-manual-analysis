@@ -1,7 +1,7 @@
 source("renv/activate.R")
 
 library(tidyverse)
-library(cmprsk)
+library(survival)
 library(finalfit)
 
 custom_theme <- function() {
