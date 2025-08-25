@@ -3,3 +3,6 @@ workflow/results/
 workflow/resources/
 workflow/logs/
 workflow/.snakemake
+/workflow/dag.svg
+/workflow/.Rprofile
+/.envrc
