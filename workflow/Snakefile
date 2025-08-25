@@ -17,7 +17,7 @@ rule all:
         #Setup directory for plots
         make_plot_dir = f"{setup_dir}/setup_done.txt",
 
-        # Tables --------------------------------------------------------------
+        # Tables ---------------------------------------------------------------
         final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
         # Patient data table with ECC score, HIF1A activation score, and GEX data
         
@@ -32,7 +32,7 @@ rule all:
 
         continuous_ecc_areas = f"{output_dir}/continuous_ecc_area.txt",
 
-        # Plots ---------------------------------------------------------------
+        # Plots ----------------------------------------------------------------
         fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
         gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
 
