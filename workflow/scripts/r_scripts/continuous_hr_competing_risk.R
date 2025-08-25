@@ -4,17 +4,6 @@ library(tidyverse)
 library(survival)
 library(finalfit)
 
-custom_theme <- function() {
-  theme_minimal() +
-    theme(
-      # Remove y-axis line
-      axis.line.x = element_line(color = "black"),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.text.y = element_text(size = 14)
-    )
-}
-
 surv_hr <- function(patient_df, grade = 0, label) {
   # Select the variable to be included in the regression
   if (grade %in% c(1, 2, 3)) {  # If one grade is selected, remove it from the regression
