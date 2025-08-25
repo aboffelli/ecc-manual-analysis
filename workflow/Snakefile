@@ -42,8 +42,14 @@ rule all:
         hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
         hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
-        
-        # Survival plots ------------------------------------------------------
+
+        # Hazard Ratio tables for continuous metric ----------------------------
+        cont_hr_surv = f"{hr_dir}/cont_os_with_grade.csv",
+        cont_hr_surv_grade_2 = f"{hr_dir}/cont_os_grade2.csv",
+        cont_hr_rec = f"{hr_dir}/cont_or_with_grade.csv",
+        cont_hr_rec_grade_2 = f"{hr_dir}/cont_or_grade2.csv",
+
+        # Survival plots -------------------------------------------------------
         surv_curves = f"{plot_dir}/survival_km_plots.pdf",
         rec_curves = f"{plot_dir}/overall_rec_km_plots.pdf"
 
@@ -310,3 +316,24 @@ rule all_data_with_continuous_ecc:
     conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/all_data_with_continuous_ecc.R"
+
+rule continuous_hr_statistics:
+    """
+    Like hr_statistics, but uses a metric based on ECC area rather than binarized ECC counts.
+    """
+
+    input:
+        #patient_data = f"{output_dir}/all_data_with_continuous_ecc.txt"
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        hr_surv = f"{hr_dir}/cont_os_with_grade.csv",
+        hr_surv_grade_1 = f"{hr_dir}/cont_os_grade1.csv",
+        hr_surv_grade_2 = f"{hr_dir}/cont_os_grade2.csv",
+        hr_surv_grade_3 = f"{hr_dir}/cont_os_grade3.csv",
+        hr_rec = f"{hr_dir}/cont_or_with_grade.csv",
+        hr_rec_grade_1 = f"{hr_dir}/cont_or_grade1.csv",
+        hr_rec_grade_2 = f"{hr_dir}/cont_or_grade2.csv",
+        hr_rec_grade_3 = f"{hr_dir}/cont_or_grade3.csv"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/continuous_hr_competing_risk.R"
