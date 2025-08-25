@@ -20,7 +20,7 @@ rule all:
         # Tables ---------------------------------------------------------------
         final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
         # Patient data table with ECC score, HIF1A activation score, and GEX data
-        
+
         gmm_table = f"{output_dir}/gmm_table.txt",
         # Gaussian mixture table for calculating fold change nuclear area of ECCs
 
