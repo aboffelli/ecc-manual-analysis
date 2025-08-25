@@ -3,7 +3,6 @@ source("renv/activate.R")
 library(tidyverse)
 library(cmprsk)
 library(finalfit)
-library(gt)
 
 custom_theme <- function() {
   theme_minimal() +
