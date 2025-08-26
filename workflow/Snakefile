@@ -1,0 +1,283 @@
+configfile: "config/config.yaml"
+import glob  # Collects file paths using flexible search patterns
+
+# Variable for the setup directory
+# This directory is used to store a flag file indicating that the workflow setup is complete
+setup_dir = "results/.workflow_setup"
+
+# Define a variable for the output directories
+output_dir = config["output_dir"]
+plot_dir = config["plot_dir"]
+hr_dir = config["hr_dir"]
+
+
+rule all:
+    # Specifies the final output files for the workflow
+    input:
+        #Setup directory for plots
+        make_plot_dir = f"{setup_dir}/setup_done.txt",
+
+        # Tables --------------------------------------------------------------
+        final_patient_table = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt", 
+        # Patient data table with ECC score, HIF1A activation score, and GEX data
+        
+        gmm_table = f"{output_dir}/gmm_table.txt",
+        # Gaussian mixture table for calculating fold change nuclear area of ECCs
+
+        all_cells_detection = f"{output_dir}/all_cells_area.txt",
+        # Nuclear area of all detections from QuPath
+
+        ecc_fold_change = f"{output_dir}/ecc_fold_change.txt",
+        # Calculation of the fold change nuclear area of the ECCs
+
+        # Plots ---------------------------------------------------------------
+        fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
+        gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
+
+        # Hazard Ratio tables --------------------------------------------------
+        hr_surv = f"{hr_dir}/os_with_grade.csv",
+        hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        hr_rec = f"{hr_dir}/or_with_grade.csv",
+        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
+        
+        # Survival plots ------------------------------------------------------
+        surv_curves = f"{plot_dir}/survival_km_plots.pdf",
+        rec_curves = f"{plot_dir}/overall_rec_km_plots.pdf"
+
+
+
+rule setup_dirs:
+    """
+    Creates the necessary directories for the workflow and a flag file to indicate setup completion.
+    This rule ensures that the output directories exist before any processing starts.
+    It uses a flag file (`setup_done.txt`) to indicate that the setup has been completed.
+    """
+    output:
+        f"{setup_dir}/setup_done.txt"
+    shell:
+        f"""
+        mkdir -p {setup_dir}
+        mkdir -p {plot_dir}
+        mkdir -p {hr_dir}
+        touch {{output}}
+        """
+
+rule merge_manual_score:
+    # Combines all manual scoring CSV files into a single complete results file.
+    input:
+        sorted(glob.glob(config["input_files"]["manual_scores"])) 
+        # Collects and sorts all CSV files with manual scores from the "resources/ManualScores" directory
+    output:
+        "resources/complete_patho_results.csv" # Combined output of all scoring files
+    shell:
+        """
+        # Combine input CSV files, skipping headers after the first file.
+        awk 'BEGIN {{FS=OFS="\t"}} \
+        FNR == 1 && NR != 1 {{next}} \
+        {{print $1,$2,$3}}' \
+        {input} > {output}
+        """
+
+
+rule ecc_patient_data:
+    # Parses patient data and maps TMA cores with ECC information.
+    input:
+        patient_file = config["input_files"]["patient_file"],  # Original patient data file
+        tma_map = config["input_files"]["tma_map"],  # TMA mapping file
+        patho_score = "resources/complete_patho_results.csv"  # Combined manual scoring results
+    output:
+        patient_cores = f"{output_dir}/patient_with_core_ecc.txt",  # Patient data with mapped TMA cores and ECC
+        patient_ecc = f"{output_dir}/all_patient_unique_with_ecc.txt"  # Unique patient data with ECC
+    script:
+        "scripts/patient_data_parsers/patient_data_parser.py"  # Python script for processing
+
+
+rule prepare_hif1a_file:
+    """
+    Merge and process the hif1a data from the multiple tables.
+    The bash script consists in three steps:
+    First, merges all files. 
+    Second step, selects only the HIF1A columns.
+    The last step, merges the two pathologist scores, keeping only the highest
+    score for each patient.
+    """
+    input:
+        immuno_tables = glob.glob(config["input_files"]["immuno_tables"])
+        # Collects and sorts all CSV files with Immunology stains scores from the "resources/ImmunoStainings" directory 
+
+    output:
+        hif1a_data = "resources/hif_scores_merged.csv"
+    
+    shell:
+        """
+        bash scripts/patient_data_parsers/process_hif1a_scores.sh {output} {input}
+        """
+
+
+rule hif_activation:
+    # Adds the hif1A activation score to the patient table.
+    input:
+        patient_cores = f"{output_dir}/patient_with_core_ecc.txt", # File containing the patient core location
+        patient_ecc = f"{output_dir}/all_patient_unique_with_ecc.txt", # File that the HIF1A activation will be added.
+        hif1a_data = "resources/hif_scores_merged.csv" # File containing the hif1a data
+    conda: "envs/r_env.yaml"
+    output:
+        f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt"
+
+    script:
+        "scripts/r_scripts/hif1a_pacc.R"
+
+
+rule prepare_gex_file:
+    '''
+    Parses the original gene expression data table to isolate only the 
+    interesting columns.
+    Here the columns are: patient number (46057), cdk1 (6078), epas1 (10708),
+    hif1a (13533), and mki67(18766).
+
+    To see a list of headers use: head -1 resources/GEX_46k_with_gene_names.csv | \
+    tr ',' '\n' | cat -n
+    '''
+    input:
+        original_gex = config["input_files"]["original_gex"]
+    
+    output:
+        gex = "resources/gex_interesting_genes.csv"
+    
+    shell:
+        """
+        awk -F "," 'BEGIN {{OFS="\t"}} {{print $46057,$6078,$10708,$13533,$18766}}' \
+        {input.original_gex} | \
+        sed 's/\r//g' > {output}
+        """
+
+rule gene_expression:
+    # Adds the gene expression values to the patient data table.
+    input: 
+        patient_hif = f"{output_dir}/all_patient_unique_with_ecc_hif1a.txt", # patient data file with HIF1A activation data
+        gex = "resources/gex_interesting_genes.csv", # Gene expression data of the selected genes.
+        script = "scripts/patient_data_parsers/merge_gene_expression.awk" # script to merge by patient number.
+    
+    output:
+        f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    
+    shell:
+        """
+        awk -f {input.script} {input.gex} {input.patient_hif} > {output}
+        """
+
+
+rule gmm_table:
+    """
+    Fits a two-component gaussian mixture model in all files generated in the 
+    QuPath detection and generates a table with the mean of each component. 
+    """
+    input:
+        sorted(glob.glob(config["input_files"]["detection_tables"]))
+    
+    output:
+        f"{output_dir}/gmm_table.txt"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/gaussian_mixture.R"
+
+
+rule detection_table:
+    # Merge the detection files created by QuPath
+    input:
+        sorted(glob.glob(config["input_files"]["detection_tables"]))
+    output: 
+        f"{output_dir}/all_cells_area.txt"
+    shell:
+        """
+        awk 'BEGIN {{FS=OFS="\t"; print "Parent","Image","Area"}} 
+        FNR == 1 {{next}} 
+        {{
+        fname = FILENAME;
+        sub(/^.*\\//, "", fname);  # remove the path of the file
+        print fname,$1,$6}}' {input} > {output}
+        """
+
+
+rule merge_ecc_sizes:
+    # Merges all the files with ECC sizes
+    input:
+        sorted(glob.glob(config["input_files"]["ecc_sizes"]))
+    output:
+        f"{output_dir}/merged_ecc_sizes.txt"
+    shell:
+        """
+        awk 'FNR == 1 && NR != 1 {{next}}
+        {{print $0}}' {input} > {output}        
+        """
+
+
+rule ecc_fold_change:
+    # Calculates the fold change for each ECC detected by the pathologists
+    input:
+        gmm_table = f"{output_dir}/gmm_table.txt",
+        merged_ecc_sizes = f"{output_dir}/merged_ecc_sizes.txt"
+    output:
+        f"{output_dir}/ecc_fold_change.txt"
+    script:
+        "scripts/patient_data_parsers/manual_scoring_sizes.py"
+
+
+rule fold_change_plot:
+    # Generates a scatterplot with the ecc nuclear area fold change
+    input:
+        gmm_table = f"{output_dir}/gmm_table.txt",
+        ecc_fold_change= f"{output_dir}/ecc_fold_change.txt",
+        all_cells_area = f"{output_dir}/all_cells_area.txt"
+    output:
+        f"{plot_dir}/ecc_fc_scatterplot.tif"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/fold_change_plots.R"
+
+rule gex_statistics:
+    # Generates a boxplot of the gene expression data
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        f"{plot_dir}/gex_boxplot.tif"
+    conda: "envs/r_env.yaml"
+    params:
+        gene = config["config"]["gex_plot_gene"],  # Gene to plot, can be overridden
+        y_label = config["config"]["gex_plot_y_label"],  # Y-axis label for the plot
+    script:
+        "scripts/r_scripts/gex_statistics.R"
+
+rule hr_statistics:
+    """
+    Generates hazard ratio statistics for overall survival and recurrence
+    based on the patient data.
+    """
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        hr_surv = f"{hr_dir}/os_with_grade.csv",
+        hr_surv_grade_1 = f"{hr_dir}/os_grade1.csv",
+        hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        hr_surv_grade_3 = f"{hr_dir}/os_grade3.csv",
+        hr_rec = f"{hr_dir}/or_with_grade.csv",
+        hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
+        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
+        hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/hr_competing_risk.R"
+
+rule hr_survival_plots:
+    """Generates survival plots for overall survival and recurrence."""
+
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    
+    output:
+        surv_dist = f"{plot_dir}/death_by_brca.tif",
+        surv_curves = f"{plot_dir}/survival_km_plots.pdf",
+        rec_curves = f"{plot_dir}/overall_rec_km_plots.pdf"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/survival_analysis.R"

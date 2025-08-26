@@ -1,11 +1,17 @@
+
+# Import regular expressions module
 import re
 
-# Set the path for the files
-filename = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/merged_ecc_sizes.txt'
-output = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/ecc_fold_change.csv'
-gmm_file = '/home/aboffelli/PACC/TMA/Results/QuPathScoreTables/gmm_table.txt'
+
+# Access the input files from Snakemake
+filename = snakemake.input["merged_ecc_sizes"]      # File with ECC sizes per core
+gmm_file = snakemake.input["gmm_table"]             # File with GMM means per core
+
+# Access the output file from Snakemake
+output = snakemake.output[0]
 
 
+# Dictionary to store GMM means for each parent/core
 gmm_dictionary = {}
 
 gmm_pattern = re.compile(  # Compile the pattern for gmm table.
@@ -34,9 +40,11 @@ size_pattern = re.compile(  # Compile the pattern from the manual size table.
 )
 
 
-with open(gmm_file, 'r')as gmm:
+
+# Parse the GMM table and store the relevant mean for each parent/core
+with open(gmm_file, 'r') as gmm:
     header = gmm.readline()
-    #print(header)
+    # print(header)  # Uncomment for debugging
     for line in gmm:
         match = gmm_pattern.search(line)  # Get the pattern in the gmm file
         if match:
