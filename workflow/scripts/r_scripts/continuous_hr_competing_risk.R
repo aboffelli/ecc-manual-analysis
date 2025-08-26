@@ -1,6 +1,6 @@
 source("renv/activate.R")
 
-library(tidyverse)
+suppressPackageStartupMessages(library(tidyverse))
 library(survival)
 library(finalfit)
 
