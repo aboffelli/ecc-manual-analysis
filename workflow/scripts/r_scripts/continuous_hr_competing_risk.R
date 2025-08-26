@@ -79,37 +79,12 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
     rename(!!os_label := label) %>%
     rename(" " = levels) %>%
     rename("  " = all)
-  # Generate the table by merging all regressions together.
-  my_table <- surv_df_15 %>%
-    # Summary table
-    summary_factorlist(dependent_dss, explanatory,
-                       column = TRUE, fit_id = TRUE) %>%
-    # CPH univariable
-    ff_merge(
-      explanatory %>%
-        map(~ surv_df_15 %>%
-              coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")),
-                    data = .) %>%
-              fit2df(estimate_suffix = " CPH univariable")) %>%
-        bind_rows()
-    ) %>%
-    # CPH multivariable
-    ff_merge(
-      surv_df_15 %>%
-        coxphmulti(dependent_dss, explanatory) %>%
-        fit2df(estimate_suffix = " CPH multivariable")
-    ) %>%
-    # Fine and Gray competing risks regression
-    ff_merge(
-      surv_df_15 %>%
-        crrmulti(dependent_crr, explanatory) %>%
-        fit2df(estimate_suffix = " competing risks multivariable")
-    ) %>%
-    select(-fit_id, -index) %>%
-    dependent_label(surv_df_15, label)
+
+  my_table <- make_table(
+    surv_df_15, explanatory, dependent_dss, dependent_crr, label
+  )
 
   return(list(os_cph, my_table))
-
 }
 
 rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
@@ -209,35 +184,42 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
     rename(" " = levels) %>%
     rename("  " = all)
 
-  my_table <- rec_df_10 %>%
-    # Summary table
-    summary_factorlist(dependent_dss, explanatory,
-                       column = TRUE, fit_id = TRUE) %>%
-    # CPH univariable
-    ff_merge(
-      explanatory %>%
-        map(~ rec_df_10 %>%
-              coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")),
-                    data = .) %>%
-              fit2df(estimate_suffix = " CPH univariable")) %>%
-        bind_rows()
-    ) %>%
-    # CPH multivariable
-    ff_merge(
-      rec_df_10 %>%
-        coxphmulti(dependent_dss, explanatory) %>%
-        fit2df(estimate_suffix = " CPH multivariable")
-    ) %>%
-    # Fine and Gray competing risks regression
-    ff_merge(
-      rec_df_10 %>%
-        crrmulti(dependent_crr, explanatory) %>%
-        fit2df(estimate_suffix = " competing risks multivariable")
-    ) %>%
-    select(-fit_id, -index) %>%
-    dependent_label(rec_df_10, label)
+  my_table <- make_table(
+    rec_df_10, explanatory, dependent_dss, dependent_crr, label
+  )
 
   return(list(or_cph, my_table))
+}
+
+make_table <- function(df, explanatory, dependent_dss, dependent_crr, label) {
+  # Generate the table by merging all regressions together.
+  df |>
+    # Summary table
+    summary_factorlist(dependent_dss, explanatory,
+                       column = TRUE, fit_id = TRUE) |>
+    # CPH univariable
+    ff_merge(
+      explanatory |>
+        map(~ df |>
+              coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")),
+                    data = _) |>
+              fit2df(estimate_suffix = " CPH univariable")) |>
+        bind_rows()
+    ) |>
+    # CPH multivariable
+    ff_merge(
+      df |>
+        coxphmulti(dependent_dss, explanatory) |>
+        fit2df(estimate_suffix = " CPH multivariable")
+    ) |>
+    # Fine and Gray competing risks regression
+    ff_merge(
+      df |>
+        crrmulti(dependent_crr, explanatory) |>
+        fit2df(estimate_suffix = " competing risks multivariable")
+    ) |>
+    select(-fit_id, -index) |>
+    dependent_label(df, label)
 }
 
 if (!interactive()) {
