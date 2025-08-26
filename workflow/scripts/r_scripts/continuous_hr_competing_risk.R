@@ -147,8 +147,7 @@ rec_hr <- function(patient_df, grade = 0, label, local = TRUE) {
 
   censor_yr <- 10  # Rec we use 10 years censor
   rec_df <- patient_df %>%
-    filter(tumor == 1,
-           ev1typ20 != 5) %>%
+    filter(ev1typ20 != 5) %>%
     mutate(rt_treat = as.factor(rt_treat),
            PACC_YN = as.factor(PACC_YN)) %>%
     droplevels()
