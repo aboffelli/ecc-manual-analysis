@@ -289,16 +289,17 @@ if (interactive()) {
 
 options(scipen = 0)
 
-patient_data <- read_tsv(input_file,
-                         na = "#NULL!") %>%
-  mutate(PACC = if_else(PACC == "NA", NA, as.integer(PACC)),
-         PACC_YN = if_else(PACC == 2, 1, 0),
-         hist_gra = as.factor(hist_gra),
-         recgrp = as.factor(recgrp),
-         tumsize = as.numeric(tumsize),
-         adjbeh = as.factor(adjbeh)) %>%
-  filter(exkl == 0, tumor == 1) %>%
-  droplevels()
+patient_data <- read_tsv(
+  input_file, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n")
+) |>
+  mutate(
+    PACC_YN = if_else(PACC == 2, 1, 0),
+    # read_tsv handles NAs differently than base R, which affects results. Using
+    # as.factor for compat.
+    across(c(hist_gra, adjbeh, recgrp), as.factor)
+  ) |>
+  filter(exkl == 0, tumor == 1)
+
 
 ## Survival ----
 # Survival with all grades
