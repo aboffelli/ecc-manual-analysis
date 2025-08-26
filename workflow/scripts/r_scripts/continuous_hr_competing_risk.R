@@ -18,7 +18,6 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
 
   censor_yr <- 15
   surv_df <- patient_df %>%
-    filter(PACC_YN %in% c(0, 1, 2)) %>%
     mutate(rt_treat = as.factor(rt_treat),
            PACC_YN = as.factor(PACC_YN),
            PACC = as.factor(PACC)) %>%
@@ -148,7 +147,7 @@ rec_hr <- function(patient_df, grade = 0, label, local = TRUE) {
 
   censor_yr <- 10  # Rec we use 10 years censor
   rec_df <- patient_df %>%
-    filter(PACC_YN %in% c(0, 1, 2), tumor == 1,
+    filter(tumor == 1,
            ev1typ20 != 5) %>%
     mutate(rt_treat = as.factor(rt_treat),
            PACC_YN = as.factor(PACC_YN)) %>%
@@ -298,7 +297,7 @@ patient_data <- read_tsv(
     # as.factor for compat.
     across(c(hist_gra, adjbeh, recgrp), as.factor)
   ) |>
-  filter(exkl == 0, tumor == 1)
+  filter(exkl == 0, tumor == 1, !is.na(PACC_YN))
 
 
 ## Survival ----
