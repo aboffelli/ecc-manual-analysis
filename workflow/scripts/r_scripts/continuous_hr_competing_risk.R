@@ -11,10 +11,6 @@ surv_hr <- function(patient_df, grade = 0, label) {
     # If one grade is selected, remove it from the regression
     explanatory <- explanatory[-which(explanatory == "hist_gra")]
 
-    # Remove variables with only one level, since not all grades have the same variables
-    explanatory <- explanatory[
-      vapply(explanatory, function(var) n_distinct(patient_df[[var]]) > 1, logical(1))
-    ]
     os_label <- paste("Overall Survival: NHG ", grade)
   } else {  # Include grade in the regression if using all grades
     grade <- c(1, 2, 3)
