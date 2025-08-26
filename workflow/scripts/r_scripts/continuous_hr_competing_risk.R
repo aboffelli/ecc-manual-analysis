@@ -121,28 +121,16 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
 
 }
 
-rec_hr <- function(patient_df, grade = 0, label, local = TRUE) {
-  if (grade %in% c(1, 2, 3)) {
-    explanatory   <- c("age",
-                       "rt_treat",
-                       "PACC_YN",
-                       "recgrp",
-                       "tumsize")
-    or_label <- paste("Overall Recurrence: NHG ", grade)
-  } else {
-    grade <- c(1, 2, 3)
-    explanatory   <- c("age",
-                       "rt_treat",
-                       "PACC_YN",
-                       "hist_gra",
-                       "recgrp",
-                       "tumsize")
+rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
+  stopifnot(all(grade %in% c(1, 2, 3)))
 
-    # Remove variables with only one level, since not all grades have the same variables
-    explanatory <- explanatory[
-      vapply(explanatory, function(var) n_distinct(patient_df[[var]]) > 1, logical(1))
-    ]
-    or_label <- "Overall Recurrence"
+  explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
+  or_label <- "Overall Recurrence"
+
+  if (length(grade) == 1) {
+    explanatory <- explanatory[-which(explanatory == "hist_gra")]
+    # NOTE: extra space ("NHG  ") added for compatibility with old file
+    or_label <- paste0(or_label, ": NHG  ", grade)
   }
 
   censor_yr <- 10  # Rec we use 10 years censor
@@ -316,7 +304,7 @@ for (i in c(1, 2, 3)) {
 
 ## Overall Recurrence ----
 # Recurrence with all grades
-all_grades <- rec_hr(patient_data, grade = 0,
+all_grades <- rec_hr(patient_data,
                      label = "Local recurrence",
                      local = TRUE)
 
