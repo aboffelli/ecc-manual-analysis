@@ -4,17 +4,16 @@ library(tidyverse)
 library(survival)
 library(finalfit)
 
-surv_hr <- function(patient_df, grade = 0, label) {
+surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
+  stopifnot(all(grade %in% c(1, 2, 3)))
+
   explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
-  # Select the variable to be included in the regression
-  if (grade %in% c(1, 2, 3)) {
+  os_label <- paste("Overall Survival")
+
+  if (length(grade) == 1) {
     # If one grade is selected, remove it from the regression
     explanatory <- explanatory[-which(explanatory == "hist_gra")]
-
-    os_label <- paste("Overall Survival: NHG ", grade)
-  } else {  # Include grade in the regression if using all grades
-    grade <- c(1, 2, 3)
-    os_label <- paste("Overall Survival")
+    os_label <- paste0(os_label, ": NHG ", grade)
   }
 
   censor_yr <- 15
