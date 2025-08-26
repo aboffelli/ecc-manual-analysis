@@ -17,23 +17,14 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
   }
 
   censor_yr <- 15
-  surv_df <- patient_df %>%
-    mutate(rt_treat = as.factor(rt_treat),
-           PACC_YN = as.factor(PACC_YN),
-           PACC = as.factor(PACC)) %>%
-    droplevels()
 
   # Censor the data based on the cut off year (15).
-  surv_df_15 <- surv_df %>%
+  surv_df_15 <- patient_df %>%
     mutate(
       bcd_cmp_ = if_else(surv_dec > censor_yr, 0, bcd_cmp_),
       surv_dec = if_else(surv_dec > censor_yr, censor_yr, surv_dec)
     ) %>%
-    filter(!is.na(hist_gra),  # Filter these out if using multivariate.
-           !is.na(recgrp),
-           !is.na(tumsize),
-           hist_gra %in% grade) %>%
-    droplevels()
+    filter(hist_gra %in% grade)
 
   # Recode the data
   # For survival, the competing risk is important.
@@ -135,19 +126,12 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
 
   censor_yr <- 10  # Rec we use 10 years censor
   rec_df <- patient_df %>%
-    filter(ev1typ20 != 5) %>%
-    mutate(rt_treat = as.factor(rt_treat),
-           PACC_YN = as.factor(PACC_YN)) %>%
-    droplevels()
+    filter(ev1typ20 != 5)
 
   rec_df_10 <- rec_df %>%
     mutate(ev1typ20 = if_else(rfs_ny > censor_yr, 0, ev1typ20),
            rfs_upd = if_else(rfs_ny > censor_yr, censor_yr, rfs_ny)) %>%
-    filter(!is.na(hist_gra),  # Filter these out if using multivariate.
-           !is.na(recgrp),
-           !is.na(tumsize),
-           hist_gra %in% grade) %>%
-    droplevels()
+    filter(hist_gra %in% grade)
 
   rec_df_10 <- rec_df_10 %>%
     mutate(
@@ -282,9 +266,16 @@ patient_data <- read_tsv(
     PACC_YN = if_else(PACC == 2, 1, 0),
     # read_tsv handles NAs differently than base R, which affects results. Using
     # as.factor for compat.
-    across(c(hist_gra, adjbeh, recgrp), as.factor)
+    across(c(hist_gra, adjbeh, recgrp, rt_treat, PACC_YN, PACC), as.factor)
   ) |>
-  filter(exkl == 0, tumor == 1, !is.na(PACC_YN))
+  filter(
+    exkl == 0,
+    tumor == 1,
+    !is.na(PACC_YN),
+    !is.na(hist_gra),
+    !is.na(recgrp),
+    !is.na(tumsize)
+  )
 
 
 ## Survival ----
