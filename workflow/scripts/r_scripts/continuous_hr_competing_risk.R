@@ -270,17 +270,22 @@ rec_hr <- function(patient_df, grade = 0, label, local = TRUE) {
   return(list(or_cph, my_table))
 }
 
-input_file <- snakemake@input$patient_data
+if (!interactive()) {
+  input_file <- snakemake@input$patient_data
+  o <- snakemake@output
+  out_surv <- o$hr_surv
+  out_surv_grades <- c(o$hr_surv_grade_1, o$hr_surv_grade_2, o$hr_surv_grade_3)
+  out_rec <- o$hr_rec
+  out_rec_grades <- c(o$hr_rec_grade_1, o$hr_rec_grade_2, o$hr_rec_grade_3)
+}
 
-out_surv <- snakemake@output$hr_surv
-out_surv_grades <- c(snakemake@output$hr_surv_grade_1,
-                     snakemake@output$hr_surv_grade_2,
-                     snakemake@output$hr_surv_grade_3)
-
-out_rec <- snakemake@output$hr_rec
-out_rec_grades <- c(snakemake@output$hr_rec_grade_1,
-                    snakemake@output$hr_rec_grade_2,
-                    snakemake@output$hr_rec_grade_3)
+if (interactive()) {
+  input_file <- "./results/all_patient_unique_with_ecc_hif1a_gex.txt"
+  out_surv <- "./results/hr/cont_os_with_grade.csv"
+  out_surv_grades <- paste0("./results/hr/cont_os_with_grade", 1:3, ".csv")
+  out_rec <- "./results/hr/cont_or_with_grade.csv"
+  out_rec_grades <- paste0("./results/hr/cont_or_with_grade", 1:3, ".csv")
+}
 
 options(scipen = 0)
 
