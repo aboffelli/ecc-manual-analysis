@@ -5,13 +5,11 @@ library(survival)
 library(finalfit)
 
 surv_hr <- function(patient_df, grade = 0, label) {
+  explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
   # Select the variable to be included in the regression
-  if (grade %in% c(1, 2, 3)) {  # If one grade is selected, remove it from the regression
-    explanatory   <- c("age",
-                       "rt_treat",
-                       "PACC_YN",
-                       "recgrp",
-                       "tumsize")
+  if (grade %in% c(1, 2, 3)) {
+    # If one grade is selected, remove it from the regression
+    explanatory <- explanatory[-which(explanatory == "hist_gra")]
 
     # Remove variables with only one level, since not all grades have the same variables
     explanatory <- explanatory[
@@ -20,12 +18,6 @@ surv_hr <- function(patient_df, grade = 0, label) {
     os_label <- paste("Overall Survival: NHG ", grade)
   } else {  # Include grade in the regression if using all grades
     grade <- c(1, 2, 3)
-    explanatory   <- c("age",
-                       "rt_treat",
-                       "PACC_YN",
-                       "hist_gra",
-                       "recgrp",
-                       "tumsize")
     os_label <- paste("Overall Survival")
   }
 
