@@ -272,22 +272,22 @@ rec_hr <- function(patient_df, grade = 0, label, local = TRUE) {
 
 
 # Access the snakemake variables
-input_file <- snakemake@input[["patient_data"]]
+input_file <- snakemake@input$patient_data
 
 # Output files for survival
-out_surv <- snakemake@output[["hr_surv"]]
-out_surv_grade1 <- snakemake@output[["hr_surv_grade_1"]]
-out_surv_grade2 <- snakemake@output[["hr_surv_grade_2"]]
-out_surv_grade3 <- snakemake@output[["hr_surv_grade_3"]]
+out_surv <- snakemake@output$hr_surv
+out_surv_grade1 <- snakemake@output$hr_surv_grade_1
+out_surv_grade2 <- snakemake@output$hr_surv_grade_2
+out_surv_grade3 <- snakemake@output$hr_surv_grade_3
 
 # Map the output files to a vector
 out_surv_grades <- c(out_surv_grade1, out_surv_grade2, out_surv_grade3)
 
 # Output files for recurrence
-out_rec <- snakemake@output[["hr_rec"]]
-out_rec_grade1 <- snakemake@output[["hr_rec_grade_1"]]
-out_rec_grade2 <- snakemake@output[["hr_rec_grade_2"]]
-out_rec_grade3 <- snakemake@output[["hr_rec_grade_3"]]
+out_rec <- snakemake@output$hr_rec
+out_rec_grade1 <- snakemake@output$hr_rec_grade_1
+out_rec_grade2 <- snakemake@output$hr_rec_grade_2
+out_rec_grade3 <- snakemake@output$hr_rec_grade_3
 # Map the output files to a vector
 out_rec_grades <- c(out_rec_grade1, out_rec_grade2, out_rec_grade3)
 
