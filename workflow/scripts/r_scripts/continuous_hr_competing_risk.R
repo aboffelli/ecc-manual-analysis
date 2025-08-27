@@ -217,9 +217,9 @@ if (!interactive()) {
 if (interactive()) {
   input_file <- "./results/all_patient_unique_with_ecc_hif1a_gex.txt"
   out_surv <- "./results/hr/cont_os_with_grade.csv"
-  out_surv_grades <- paste0("./results/hr/cont_os_with_grade", 1:3, ".csv")
+  out_surv_grades <- paste0("./results/hr/cont_os_grade", 1:3, ".csv")
   out_rec <- "./results/hr/cont_or_with_grade.csv"
-  out_rec_grades <- paste0("./results/hr/cont_or_with_grade", 1:3, ".csv")
+  out_rec_grades <- paste0("./results/hr/cont_or_grade", 1:3, ".csv")
 }
 
 options(scipen = 0)
