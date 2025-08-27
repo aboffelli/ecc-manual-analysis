@@ -212,6 +212,8 @@ if (!interactive()) {
   out_surv_grades <- c(o$hr_surv_grade_1, o$hr_surv_grade_2, o$hr_surv_grade_3)
   out_rec <- o$hr_rec
   out_rec_grades <- c(o$hr_rec_grade_1, o$hr_rec_grade_2, o$hr_rec_grade_3)
+  out_rec_2 <- o$hr_rec_2
+  out_rec_grades_2 <- c(o$hr_rec_grade_1_2, o$hr_rec_grade_2_2, o$hr_rec_grade_3_2)
 }
 
 if (interactive()) {
@@ -220,6 +222,8 @@ if (interactive()) {
   out_surv_grades <- paste0("./results/hr/cont_os_grade", 1:3, ".csv")
   out_rec <- "./results/hr/cont_or_with_grade.csv"
   out_rec_grades <- paste0("./results/hr/cont_or_grade", 1:3, ".csv")
+  out_rec_2 <- "./results/hr/cont_or_with_grade_2.csv"
+  out_rec_grades_2 <- paste0("./results/hr/cont_or_grade", 1:3, "_2.csv")
 }
 
 options(scipen = 0)
@@ -264,6 +268,7 @@ all_grades <- rec_hr(patient_data,
                      local = TRUE)
 
 write_tsv(all_grades[[1]], out_rec)
+write_tsv(all_grades[[2]], out_rec_2)
 
 # Recurrence for all grades separately
 for (i in c(1, 2, 3)) {
@@ -272,4 +277,5 @@ for (i in c(1, 2, 3)) {
                       local = TRUE)
 
   write_tsv(new_table[[1]], out_rec_grades[i])
+  write_tsv(new_table[[2]], out_rec_grades_2[i])
 }
