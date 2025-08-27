@@ -11,7 +11,8 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
   os_label <- "Overall Survival"
 
   if (length(grade) == 1) {
-    # If one grade is selected, remove it from the regression
+    # Since one grade is selected, remove grade (which is now constant) from the
+    # regression
     explanatory <- explanatory[-which(explanatory == "hist_gra")]
     os_label <- paste0(os_label, ": NHG ", grade)
   }
