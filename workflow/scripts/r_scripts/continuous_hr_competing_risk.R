@@ -22,7 +22,8 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
       bcd_cmp_ = if_else(surv_dec > censor_yr, 0, bcd_cmp_),
       surv_dec = if_else(surv_dec > censor_yr, censor_yr, surv_dec)
     ) %>%
-    filter(hist_gra %in% grade)
+    filter(hist_gra %in% grade) |>
+    mutate(across(c(recgrp, hist_gra), droplevels))
 
   # Recode the data
   # For survival, the competing risk is important.
@@ -45,28 +46,28 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
       # Rename the variables (for multivariate analysis).
       age = ff_label(age, "Age (years)"),
 
-      rt_treat = factor(rt_treat) %>%
+      rt_treat = rt_treat %>%
         fct_recode("No" = "0",
                    "Yes" = "1") %>%
         ff_label("Radiotherapy"),
 
-      hist_gra = factor(hist_gra) %>%
-        ff_label("NHG"),
+      hist_gra = ff_label(hist_gra, "NHG"),
 
-      recgrp = recode(as.character(recgrp),
-                      "1" = "Luminal A",
-                      "2" = "Luminal B",
-                      "3" = "HER2",
-                      "4" = "TN") %>%
-        factor() %>%
+      recgrp = recgrp %>%
+        fct_recode(
+          "Luminal A" = "1",
+          "Luminal B" = "2",
+          "HER2" = "3",
+          "TN" = "4"
+        ) %>%
+        fct_relevel("HER2", "Luminal A", "Luminal B", "TN") |>
         ff_label("Cancer subtype"),
-      tumsize = ff_label(as.numeric(tumsize), "Tumor size"),
-      PACC_YN = factor(PACC_YN) %>%
+      tumsize = ff_label(tumsize, "Tumor size"),
+      PACC_YN = PACC_YN %>%
         fct_recode("-" = "0",
                    "+" = "1") %>%
         ff_label("ECC Score")
     )
-
   # Survival objects
   dependent_os <- "Surv(rfs_upd, status_os)"
   dependent_dss <- "Surv(surv_dec, status_dss)"
@@ -103,22 +104,23 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_y
   rec_df_10 <- rec_df %>%
     mutate(ev1typ20 = if_else(rfs_ny > censor_yr, 0, ev1typ20),
            rfs_upd = if_else(rfs_ny > censor_yr, censor_yr, rfs_ny)) %>%
-    filter(hist_gra %in% grade)
+    filter(hist_gra %in% grade) |>
+    mutate(across(c(recgrp, hist_gra), droplevels))
+
 
   rec_df_10 <- rec_df_10 %>%
     mutate(
       # Rename the variables.
       age = ff_label(age, "Age (years)"),
 
-      rt_treat = factor(rt_treat) %>%
+      rt_treat = rt_treat %>%
         fct_recode("No" = "0",
                    "Yes" = "1") %>%
         ff_label("Radiotherapy"),
 
-      hist_gra = factor(hist_gra) %>%
-        ff_label("NHG"),
+      hist_gra = ff_label(hist_gra, "NHG"),
 
-      recgrp = factor(recgrp) %>%
+      recgrp = recgrp %>%
         fct_recode(
           "Luminal A" = "1",
           "Luminal B" = "2",
@@ -126,8 +128,8 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_y
           "TN" = "4"
         ) %>%
         ff_label("Cancer subtype"),
-      tumsize = ff_label(as.numeric(tumsize), "Tumor size"),
-      PACC_YN = factor(PACC_YN) %>%
+      tumsize = ff_label(tumsize, "Tumor size"),
+      PACC_YN = PACC_YN %>%
         fct_recode("-" = "0",
                    "+" = "1") %>%
         ff_label("ECC Score")
@@ -241,21 +243,20 @@ options(scipen = 0)
 patient_data <- read_tsv(
   input_file, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n")
 ) |>
-  mutate(
-    PACC_YN = if_else(PACC == 2, 1, 0),
-    # read_tsv handles NAs differently than base R, which affects results. Using
-    # as.factor for compat.
-    across(c(hist_gra, adjbeh, recgrp, rt_treat, PACC_YN, PACC), as.factor)
-  ) |>
   filter(
     exkl == 0,
     tumor == 1,
-    !is.na(PACC_YN),
     !is.na(hist_gra),
     !is.na(recgrp),
     !is.na(tumsize)
+  ) |>
+  mutate(PACC_YN = if_else(PACC == 2, 1, 0)) |>
+  filter(!is.na(PACC_YN)) |>
+  mutate(
+    # read_tsv handles NAs differently than base R, which affects results. Using
+    # as.factor for compat.
+    across(c(hist_gra, adjbeh, recgrp, rt_treat, PACC_YN, PACC), as.factor)
   )
-
 
 ## Survival ----
 # Survival with all grades
