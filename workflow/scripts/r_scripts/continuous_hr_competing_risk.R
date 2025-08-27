@@ -29,19 +29,13 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
   # For survival, the competing risk is important.
   surv_df_15 <- surv_df_15 %>%
     mutate(
-      # Overall survival
-      status_os = if_else(bcd_cmp_ == 0, 0, # "still alive"
-                          1), # "died of bc" or "died of other causes"
-
-      # Diease-specific survival
-      status_dss = if_else(bcd_cmp_ == 0, 0, # "still alive"
-                           if_else(bcd_cmp_ == 1, 1, # "died of bc"
-                                   0)), # "died of other causes is censored"
-
       # Competing risks regression
-      status_crr = if_else(bcd_cmp_ == 0, 0, # "still alive"
-                           if_else(bcd_cmp_ == 1, 1, # "died of bc"
-                                   2)), # "died of other causes"
+      # 0: alive
+      # 1: died of breast cancer
+      # 2: died of other cause
+      status_crr = if_else(bcd_cmp_ %in% 0:1, bcd_cmp_, 2),
+      status_os = status_crr != 0,
+      status_dss = status_crr == 1,
 
       # Rename the variables (for multivariate analysis).
       age = ff_label(age, "Age (years)"),
@@ -107,6 +101,39 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_y
     filter(hist_gra %in% grade) |>
     mutate(across(c(recgrp, hist_gra), droplevels))
 
+  if (local) {
+    rec_df_10 <- rec_df_10 |>
+      mutate(
+        # Competing risks regression
+        # 0: recurrence free
+        # 1: local recurrence
+        # 2: distant recurrence
+        status_crr = case_when(
+          ev1typ20 == 0 ~ 0,
+          ev1typ20 == 4 ~ 2,
+          .default = 1
+        )
+      )
+  } else {
+    rec_df_10 <- rec_df_10 |>
+      mutate(
+        # Competing risks regression
+        # 0: recurrence free
+        # 1: distant recurrence
+        # 2: local recurrence
+        status_crr = case_when(
+          ev1typ20 == 0 ~ 0,
+          ev1typ20 == 4 ~ 1,
+          .default = 2
+        )
+      )
+  }
+
+  rec_df_10 <- rec_df_10 |>
+    mutate(
+      status_os = status_crr != 0,
+      status_dss = status_crr == 1
+    )
 
   rec_df_10 <- rec_df_10 %>%
     mutate(
@@ -135,42 +162,6 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_y
         ff_label("ECC Score")
     )
 
-  if (local == TRUE) {
-    rec_df_10 <- rec_df_10 %>%
-      mutate(
-        # Overall survival
-        status_os = if_else(ev1typ20 == 0, 0, # "rec free"
-                            1), # "recurrence any type"
-
-        # Diease-specific survival
-        status_dss = if_else(ev1typ20 == 0, 0, # "rec free"
-                             if_else(ev1typ20 != 4, 1, # "local recurrence"
-                                     0)), # "distant recurrence censored"
-
-        # Competing risks regression
-        status_crr = if_else(ev1typ20 == 0, 0, # "rec free"
-                             if_else(ev1typ20 != 4, 1, # local recurrence"
-                                     2)) # "distant recurrence"
-      )
-
-  } else {
-    rec_df_10 <- rec_df_10 %>%
-      mutate(
-        # Overall survival
-        status_os = if_else(ev1typ20 == 0, 0, # "rec free"
-                            1), # "recurrence any type"
-
-        # Diease-specific survival
-        status_dss = if_else(ev1typ20 == 0, 0, # "rec free"
-                             if_else(ev1typ20 == 4, 1, # "distant recurrence"
-                                     0)), # "local recurrence censored"
-
-        # Competing risks regression
-        status_crr = if_else(ev1typ20 == 0, 0, # "rec free"
-                             if_else(ev1typ20 == 4, 1, # distant recurrence"
-                                     2)) # "local recurrences"
-      )
-  }
 
   # Set the multivariable columns and the tests
   dependent_os <- "Surv(rfs_upd, status_os)"
