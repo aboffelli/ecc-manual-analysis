@@ -25,9 +25,7 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
     filter(hist_gra %in% grade) |>
     mutate(across(c(recgrp, hist_gra), droplevels))
 
-  # Recode the data
-  # For survival, the competing risk is important.
-  surv_df_15 <- surv_df_15 %>%
+  surv_df_15 <- surv_df_15 |>
     mutate(
       # Competing risks regression
       # 0: alive
@@ -39,27 +37,22 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
 
       # Rename the variables (for multivariate analysis).
       age = ff_label(age, "Age (years)"),
-
-      rt_treat = rt_treat %>%
-        fct_recode("No" = "0",
-                   "Yes" = "1") %>%
+      rt_treat = rt_treat |>
+        fct_recode("No" = "0", "Yes" = "1") |>
         ff_label("Radiotherapy"),
-
       hist_gra = ff_label(hist_gra, "NHG"),
-
-      recgrp = recgrp %>%
+      recgrp = recgrp |>
         fct_recode(
           "Luminal A" = "1",
           "Luminal B" = "2",
           "HER2" = "3",
           "TN" = "4"
-        ) %>%
+        ) |>
         fct_relevel("HER2", "Luminal A", "Luminal B", "TN") |>
         ff_label("Cancer subtype"),
       tumsize = ff_label(tumsize, "Tumor size"),
-      PACC_YN = PACC_YN %>%
-        fct_recode("-" = "0",
-                   "+" = "1") %>%
+      PACC_YN = PACC_YN |>
+        fct_recode("-" = "0", "+" = "1") |>
         ff_label("ECC Score")
     )
   # Survival objects
