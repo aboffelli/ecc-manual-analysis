@@ -4,7 +4,7 @@ suppressPackageStartupMessages(library(tidyverse))
 library(survival)
 library(finalfit)
 
-surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
+surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
   stopifnot(all(grade %in% c(1, 2, 3)))
 
   explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
@@ -16,9 +16,6 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
     os_label <- paste0(os_label, ": NHG ", grade)
   }
 
-  censor_yr <- 15
-
-  # Censor the data based on the cut off year (15).
   surv_df_15 <- patient_df %>%
     mutate(
       bcd_cmp_ = if_else(surv_dec > censor_yr, 0, bcd_cmp_),
@@ -87,7 +84,7 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
   return(list(os_cph, my_table))
 }
 
-rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
+rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_yr = 10) {
   stopifnot(all(grade %in% c(1, 2, 3)))
 
   explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
@@ -99,7 +96,6 @@ rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE) {
     or_label <- paste0(or_label, ": NHG  ", grade)
   }
 
-  censor_yr <- 10  # Rec we use 10 years censor
   rec_df <- patient_df %>%
     filter(ev1typ20 != 5)
 
