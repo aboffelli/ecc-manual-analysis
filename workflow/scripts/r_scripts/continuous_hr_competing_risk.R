@@ -8,7 +8,7 @@ surv_hr <- function(patient_df, grade = c(1, 2, 3), label) {
   stopifnot(all(grade %in% c(1, 2, 3)))
 
   explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
-  os_label <- paste("Overall Survival")
+  os_label <- "Overall Survival"
 
   if (length(grade) == 1) {
     # If one grade is selected, remove it from the regression
