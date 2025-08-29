@@ -40,9 +40,7 @@ rule all:
         # Hazard Ratio tables --------------------------------------------------
         hr_data = f"{hr_dir}/all_hr_data.csv",
         hr_surv = f"{hr_dir}/os_with_grade.csv",
-        hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
-        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
 
         # Survival plots -------------------------------------------------------
         surv_curves = f"{plot_dir}/survival_km_plots.pdf",
@@ -269,10 +267,6 @@ rule hr_statistics:
         hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
         hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
         hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv",
-        hr_rec_2 = f"{hr_dir}/or_with_grade_2.csv",
-        hr_rec_grade_1_2 = f"{hr_dir}/or_grade1_2.csv",
-        hr_rec_grade_2_2 = f"{hr_dir}/or_grade2_2.csv",
-        hr_rec_grade_3_2 = f"{hr_dir}/or_grade3_2.csv"
     conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/hr_competing_risk.R"

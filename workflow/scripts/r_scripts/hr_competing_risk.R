@@ -319,13 +319,8 @@ suppressMessages(suppressWarnings({
     out_rec_grade1 = snakemake@output[["hr_rec_grade_1"]]
     out_rec_grade2 = snakemake@output[["hr_rec_grade_2"]]
     out_rec_grade3 = snakemake@output[["hr_rec_grade_3"]]
-    out_rec_2 = snakemake@output[["hr_rec_2"]]
-    out_rec_grade1_2 = snakemake@output[["hr_rec_grade_1_2"]]
-    out_rec_grade2_2 = snakemake@output[["hr_rec_grade_2_2"]]
-    out_rec_grade3_2 = snakemake@output[["hr_rec_grade_3_2"]]
     # Map the output files to a vector
     out_rec_grades <- c(out_rec_grade1, out_rec_grade2, out_rec_grade3)
-    out_rec_grades_2 <- c(out_rec_grade1_2, out_rec_grade2_2, out_rec_grade3_2)
 
     options(scipen = 0)
 
@@ -364,7 +359,6 @@ suppressMessages(suppressWarnings({
                                 local = T)
 
     write_tsv(all_grades[[1]], out_rec)
-    write_tsv(all_grades[[2]], out_rec_2)
 
     # Recurrence for all grades separately
     for (i in c(1,2,3)) {
@@ -373,6 +367,5 @@ suppressMessages(suppressWarnings({
                                 local = TRUE)
 
         write_tsv(new_table[[1]], out_rec_grades[i])
-        write_tsv(new_table[[2]], out_rec_grades_2[i])
     }
 }))
