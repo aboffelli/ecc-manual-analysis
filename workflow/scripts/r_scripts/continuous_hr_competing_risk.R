@@ -2,280 +2,288 @@ source("renv/activate.R")
 
 suppressPackageStartupMessages(library(tidyverse))
 library(survival)
-library(finalfit)
+library(broom)      # Tidying statistical results
+library(tidycmprsk) # Competing risks
 
-surv_hr <- function(patient_df, grade = c(1, 2, 3), label, censor_yr = 15) {
-  stopifnot(all(grade %in% c(1, 2, 3)))
+# SCRIPT OVERVIEW
+#
+# prepare_patient_data: Removes NA values independent variables and sets
+# factors, creates a "time" and several "event" columns, the details which vary
+# if event_type is survival or recurrence.
+#
+# fit_all_models: Fits univariable and multivariable coxph (or competing risk)
+# models. Fits on entire data set as well as stratifying by grade
+#
+# Script output is a single large dataframe that contains everything your heart
+# could desire. Each line is a 'level' (for numerics, there are no levels in a
+# term - so it's just "NA"). Hazard ratios, p-values, confidence intervals (95%)
+# as well as 'fit providence' (is it from univariable, multivariable, grade
+# stratified, OS, DSS, competing risks, survival, or recurrence). Additionally
+# includes the mean and standard deviation of the numeric term, or percent and
+# count of the factor term.
 
-  explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
-  os_label <- "Overall Survival"
 
-  if (length(grade) == 1) {
-    # Since one grade is selected, remove grade (which is now constant) from the
-    # regression
-    explanatory <- explanatory[-which(explanatory == "hist_gra")]
-    os_label <- paste0(os_label, ": NHG ", grade)
+# Creates survival/recurrence cols (status_(cr/os/dss)) and censors past the
+# cutoff date. Column `time` holds time to event
+#
+# 0: No event
+# 1: Disease specific event
+# 2: Non-disease specific event
+#
+# For OS and DSS, only 0 and 1 exist.
+#
+# The `local` argument is only used for `event_type = "recurrence"`. It changes
+# what is considered to be 'disease' in a DSS sense. If TRUE, local recurrences
+# will be considered 'disease', otherwise distant recurrences will.
+#
+# It probably makes more sense to create many columns prepended with "surv_" and
+# "rec_" so this function would only be called once, but here we are.
+prepare_patient_data <- function(path,
+                                 event_type = c("survival", "recurrence"),
+                                 n_years_cutoff = NULL,
+                                 local = TRUE) {
+  event_type <- match.arg(event_type, c("survival", "recurrence"))
+
+  if (is.null(n_years_cutoff)) {
+    if (event_type == "survival") n_years_cutoff <- 15
+    if (event_type == "recurrence") n_years_cutoff <- 10
   }
 
-  surv_df_15 <- patient_df %>%
+  df <- read_tsv(
+    path, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n")
+  ) |>
+    filter(
+      exkl == 0,
+      tumor == 1,
+      !is.na(hist_gra),
+      !is.na(recgrp),
+      !is.na(tumsize)
+    ) |>
+    mutate(PACC_YN = if_else(PACC == 2, 1, 0)) |>
+    filter(!is.na(PACC_YN)) |>
     mutate(
-      bcd_cmp_ = if_else(surv_dec > censor_yr, 0, bcd_cmp_),
-      surv_dec = if_else(surv_dec > censor_yr, censor_yr, surv_dec)
-    ) %>%
-    filter(hist_gra %in% grade) |>
-    mutate(across(c(recgrp, hist_gra), droplevels))
+      # read_tsv handles NAs differently than base R, which affects results.
+      # Using as.factor for compat.
+      across(c(hist_gra, adjbeh, recgrp, rt_treat, PACC_YN, PACC), as.factor)
+    )
 
-  surv_df_15 <- surv_df_15 |>
+  # Event-type non-specific manipulations:
+  df <- df |>
+    # Previously, dropping NAs was done implicitly when filtering for grades to
+    # use for analysis.
+    #
+    # Yes, "NA" is a character string rather than actual NA
+    filter(hist_gra != "NA") |>
+    droplevels()
+
+  if (event_type == "survival") {
+    df <- prepare_survival_df(df, n_years_cutoff)
+  }
+
+  if (event_type == "recurrence") {
+    df <- prepare_recurrence_df(df, n_years_cutoff, local)
+  }
+
+  # tidycmprsk::crr requires event col to be factor, not numeric.
+  #
+  # Coercing to factor now rather than upstream because factors are slippery and
+  # I'd rather deal with them as little as possible.
+  df <- mutate(df, status_cr = factor(status_cr))
+
+  df
+}
+prepare_survival_df <- function(df, n_years_cutoff) {
+  df |>
     mutate(
-      # Competing risks regression
+      bcd_cmp_ = if_else(surv_dec > n_years_cutoff, 0, bcd_cmp_),
+      time = if_else(surv_dec > n_years_cutoff, n_years_cutoff, surv_dec),
+      # Competing risks
       # 0: alive
       # 1: died of breast cancer
       # 2: died of other cause
-      status_crr = if_else(bcd_cmp_ %in% 0:1, bcd_cmp_, 2),
-      status_os = status_crr != 0,
-      status_dss = status_crr == 1,
-
-      # Rename the variables (for multivariate analysis).
-      age = ff_label(age, "Age (years)"),
-      rt_treat = rt_treat |>
-        fct_recode("No" = "0", "Yes" = "1") |>
-        ff_label("Radiotherapy"),
-      hist_gra = ff_label(hist_gra, "NHG"),
-      recgrp = recgrp |>
-        fct_recode(
-          "Luminal A" = "1",
-          "Luminal B" = "2",
-          "HER2" = "3",
-          "TN" = "4"
-        ) |>
-        fct_relevel("HER2", "Luminal A", "Luminal B", "TN") |>
-        ff_label("Cancer subtype"),
-      tumsize = ff_label(tumsize, "Tumor size"),
-      PACC_YN = PACC_YN |>
-        fct_recode("-" = "0", "+" = "1") |>
-        ff_label("ECC Score")
+      status_cr = if_else(bcd_cmp_ %in% 0:1, bcd_cmp_, 2),
+      status_os = status_cr != 0,
+      status_dss = status_cr == 1
     )
-  # Survival objects
-  dependent_os <- "Surv(rfs_upd, status_os)"
-  dependent_dss <- "Surv(surv_dec, status_dss)"
-  dependent_crr <- "Surv(surv_dec, status_crr)"
-
-  os_cph <- surv_df_15 %>%
-    finalfit(dependent_os, explanatory, add_dependent_label = FALSE) %>%
-    rename(!!os_label := label) %>%
-    rename(" " = levels) %>%
-    rename("  " = all)
-
-  my_table <- make_table(
-    surv_df_15, explanatory, dependent_dss, dependent_crr, label
-  )
-
-  return(list(os_cph, my_table))
 }
-
-rec_hr <- function(patient_df, grade = c(1, 2, 3), label, local = TRUE, censor_yr = 10) {
-  stopifnot(all(grade %in% c(1, 2, 3)))
-
-  explanatory <- c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize")
-  or_label <- "Overall Recurrence"
-
-  if (length(grade) == 1) {
-    explanatory <- explanatory[-which(explanatory == "hist_gra")]
-    # NOTE: extra space ("NHG  ") added for compatibility with old file
-    or_label <- paste0(or_label, ": NHG  ", grade)
-  }
-
-  rec_df <- patient_df %>%
-    filter(ev1typ20 != 5)
-
-  rec_df_10 <- rec_df %>%
-    mutate(ev1typ20 = if_else(rfs_ny > censor_yr, 0, ev1typ20),
-           rfs_upd = if_else(rfs_ny > censor_yr, censor_yr, rfs_ny)) %>%
-    filter(hist_gra %in% grade) |>
-    mutate(across(c(recgrp, hist_gra), droplevels))
-
-  if (local) {
-    rec_df_10 <- rec_df_10 |>
-      mutate(
-        # Competing risks regression
-        # 0: recurrence free
-        # 1: local recurrence
-        # 2: distant recurrence
-        status_crr = case_when(
-          ev1typ20 == 0 ~ 0,
-          ev1typ20 == 4 ~ 2,
-          .default = 1
-        )
-      )
-  } else {
-    rec_df_10 <- rec_df_10 |>
-      mutate(
-        # Competing risks regression
-        # 0: recurrence free
-        # 1: distant recurrence
-        # 2: local recurrence
-        status_crr = case_when(
-          ev1typ20 == 0 ~ 0,
-          ev1typ20 == 4 ~ 1,
-          .default = 2
-        )
-      )
-  }
-
-  rec_df_10 <- rec_df_10 |>
-    mutate(
-      status_os = status_crr != 0,
-      status_dss = status_crr == 1
-    )
-
-  rec_df_10 <- rec_df_10 %>%
-    mutate(
-      # Rename the variables.
-      age = ff_label(age, "Age (years)"),
-
-      rt_treat = rt_treat %>%
-        fct_recode("No" = "0",
-                   "Yes" = "1") %>%
-        ff_label("Radiotherapy"),
-
-      hist_gra = ff_label(hist_gra, "NHG"),
-
-      recgrp = recgrp %>%
-        fct_recode(
-          "Luminal A" = "1",
-          "Luminal B" = "2",
-          "HER2" = "3",
-          "TN" = "4"
-        ) %>%
-        ff_label("Cancer subtype"),
-      tumsize = ff_label(tumsize, "Tumor size"),
-      PACC_YN = PACC_YN %>%
-        fct_recode("-" = "0",
-                   "+" = "1") %>%
-        ff_label("ECC Score")
-    )
-
-
-  # Set the multivariable columns and the tests
-  dependent_os <- "Surv(rfs_upd, status_os)"
-  dependent_dss <- "Surv(rfs_upd, status_dss)"
-  dependent_crr <- "Surv(rfs_upd, status_crr)"
-
-  or_cph <- rec_df_10 %>%
-    finalfit(dependent_os, explanatory, add_dependent_label = FALSE) %>%
-    rename(!!or_label := label) %>%
-    rename(" " = levels) %>%
-    rename("  " = all)
-
-  my_table <- make_table(
-    rec_df_10, explanatory, dependent_dss, dependent_crr, label
-  )
-
-  return(list(or_cph, my_table))
-}
-
-make_table <- function(df, explanatory, dependent_dss, dependent_crr, label) {
-  # Generate the table by merging all regressions together.
+prepare_recurrence_df <- function(df, n_years_cutoff, local) {
+  local_recurrence_code <- ifelse(local, 1, 2)
+  distant_recurrence_code <- ifelse(local, 2, 1)
   df |>
-    # Summary table
-    summary_factorlist(dependent_dss, explanatory,
-                       column = TRUE, fit_id = TRUE) |>
-    # CPH univariable
-    ff_merge(
-      explanatory |>
-        map(~ df |>
-              coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")),
-                    data = _) |>
-              fit2df(estimate_suffix = " CPH univariable")) |>
-        bind_rows()
-    ) |>
-    # CPH multivariable
-    ff_merge(
-      df |>
-        coxphmulti(dependent_dss, explanatory) |>
-        fit2df(estimate_suffix = " CPH multivariable")
-    ) |>
-    # Fine and Gray competing risks regression
-    ff_merge(
-      df |>
-        crrmulti(dependent_crr, explanatory) |>
-        fit2df(estimate_suffix = " competing risks multivariable")
-    ) |>
-    select(-fit_id, -index) |>
-    dependent_label(df, label)
+    # No idea what this does, just doing what the old code did
+    filter(ev1typ20 != 5) |>
+    mutate(
+      ev1typ20 = if_else(rfs_ny > n_years_cutoff, 0, ev1typ20),
+      time = if_else(rfs_ny > n_years_cutoff, n_years_cutoff, rfs_ny),
+      status_cr = case_when(
+        ev1typ20 == 0 ~ 0,
+        ev1typ20 == 4 ~ distant_recurrence_code,
+        .default = local_recurrence_code
+      ),
+      status_os = status_cr != 0,
+      status_dss = status_cr == 1
+    )
 }
 
-if (!interactive()) {
-  input_file <- snakemake@input$patient_data
-  o <- snakemake@output
-  out_surv <- o$hr_surv
-  out_surv_grades <- c(o$hr_surv_grade_1, o$hr_surv_grade_2, o$hr_surv_grade_3)
-  out_rec <- o$hr_rec
-  out_rec_grades <- c(o$hr_rec_grade_1, o$hr_rec_grade_2, o$hr_rec_grade_3)
-  out_rec_2 <- o$hr_rec_2
-  out_rec_grades_2 <- c(o$hr_rec_grade_1_2, o$hr_rec_grade_2_2, o$hr_rec_grade_3_2)
-}
-
-if (interactive()) {
-  input_file <- "./results/all_patient_unique_with_ecc_hif1a_gex.txt"
-  out_surv <- "./results/hr/cont_os_with_grade.csv"
-  out_surv_grades <- paste0("./results/hr/cont_os_grade", 1:3, ".csv")
-  out_rec <- "./results/hr/cont_or_with_grade.csv"
-  out_rec_grades <- paste0("./results/hr/cont_or_grade", 1:3, ".csv")
-  out_rec_2 <- "./results/hr/cont_or_with_grade_2.csv"
-  out_rec_grades_2 <- paste0("./results/hr/cont_or_grade", 1:3, "_2.csv")
-}
-
-options(scipen = 0)
-
-patient_data <- read_tsv(
-  input_file, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n")
-) |>
-  filter(
-    exkl == 0,
-    tumor == 1,
-    !is.na(hist_gra),
-    !is.na(recgrp),
-    !is.na(tumsize)
-  ) |>
-  mutate(PACC_YN = if_else(PACC == 2, 1, 0)) |>
-  filter(!is.na(PACC_YN)) |>
-  mutate(
-    # read_tsv handles NAs differently than base R, which affects results. Using
-    # as.factor for compat.
-    across(c(hist_gra, adjbeh, recgrp, rt_treat, PACC_YN, PACC), as.factor)
+# Fits all models (univariable, multivariable, with overall, disease, and
+# competing risk survival). In addition to fitting the entire dataset, also
+# stratifies by grade and does the same for each.
+#
+# As such, model_type (2) * event_type (3) * grades (4) = 24 models will be fit.
+# (technically many more since the univariate fits each term seperately)
+fit_all_models <- function(df) {
+  arg_table <- expand_grid(
+    model_type = c("univariable", "multivariable"),
+    event_col = c("status_os", "status_dss", "status_cr")
   )
 
-## Survival ----
-# Survival with all grades
-all_grades <- surv_hr(patient_df = patient_data,
-                      label = "Survival")
+  # Fit without grade stratification
+  together <- mapply(
+    \(model_type, event_col) fit_coxph(df, model_type, event_col),
+    arg_table$model_type,
+    arg_table$event_col,
+    SIMPLIFY = FALSE
+  ) |>
+    bind_rows() |>
+    mutate(grade_stratum = "all")
 
-write_tsv(all_grades[[2]], out_surv)
+  # Fit stratifying by grade
+  by_grade <- mapply(
+    \(model_type, event_col) {
+      tapply(
+        df, ~ hist_gra, fit_coxph,
+        model_type = model_type,
+        event_col = event_col,
+        independent_variables = c("age", "rt_treat", "PACC_YN", "recgrp", "tumsize")
+      )
+    },
+    arg_table$model_type, arg_table$event_col, SIMPLIFY = FALSE
+  ) |>
+    unlist(recursive = FALSE) |>
+    bind_rows(.id = "grade_stratum") |>
+    # extract grade from 'multivariable.3'
+    mutate(grade_stratum = str_extract(grade_stratum, "[^\\.]$"))
 
-# Survival for all grades separately
-for (i in c(1, 2, 3)) {
-  new_table <- surv_hr(patient_df = patient_data,
-                       grade = i,
-                       label = paste("Survival: Grade", i))
-  write_tsv(new_table[[2]], out_surv_grades[i])
+  bind_rows(by_grade, together)
 }
 
-## Overall Recurrence ----
-# Recurrence with all grades
-all_grades <- rec_hr(patient_data,
-                     label = "Local recurrence",
-                     local = TRUE)
+# Fits a coxph model. Can be univariable or multivariable. Setting `event_col`
+# to be `status_cr` with automatically fit with a competing risk model.
+fit_coxph <- function(df,
+                      model_type = c("univariable", "multivariable"),
+                      event_col = "status_dss",
+                      independent_variables = c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize"),
+                      time_col = "time") {
+  model_type <- match.arg(model_type, c("univariable", "multivariable"))
 
-write_tsv(all_grades[[1]], out_rec)
-write_tsv(all_grades[[2]], out_rec_2)
+  if (model_type == "univariable") {
+    fit_df <- fit_univariable_coxph(df, time_col, event_col, independent_variables)
+  }
 
-# Recurrence for all grades separately
-for (i in c(1, 2, 3)) {
-  new_table <- rec_hr(patient_data, grade = i,
-                      label = paste("Local recurrence: Grade", i),
-                      local = TRUE)
+  if (model_type == "multivariable") {
+    fit_df <- fit_multivariable_coxph(df, time_col, event_col, independent_variables)
+  }
 
-  write_tsv(new_table[[1]], out_rec_grades[i])
-  write_tsv(new_table[[2]], out_rec_grades_2[i])
+  iv_summary <- lapply(independent_variables, \(x) make_iv_summary(df = df, colname = x)) |>
+    Reduce(rbind, x = _)
+
+  fit_with_summary <- full_join(fit_df, iv_summary, by = "term")
+
+  # Add some provenance
+  fit_with_summary$model_type <- model_type
+  fit_with_summary$event_type <- event_col
+
+  fit_with_summary
 }
+
+fit_univariable_coxph <- function(df, time_col, event_col, independent_variables) {
+  # Use competing risk model if competing risk status is supplied
+  cox_fn <- ifelse(event_col == "status_cr", crr, coxph)
+
+  # Make formulas from strings, then fit univariate coxph.
+  independent_variables |>
+    lapply(
+      \(x) {
+        paste0("Surv(", time_col, ", ", event_col, ") ~ ", x) |>
+          as.formula() |>
+          cox_fn(df) |>
+          tidy(exponentiate = TRUE, conf.int = TRUE)
+      }
+    ) |>
+    Reduce(rbind, x = _)
+}
+
+fit_multivariable_coxph <- function(df, time_col, event_col, independent_variables) {
+  formula <- paste0(
+    "Surv(", time_col, ", ", event_col, ") ~ ",
+    paste0(independent_variables, collapse = " + ")
+  ) |>
+    as.formula()
+
+  # Independent variable summary table
+  lapply(independent_variables, \(x) {
+
+  })
+
+
+  cox_fn <- ifelse(event_col == "status_cr", crr, coxph)
+
+  cox_fn(formula, df) |>
+    tidy(exponentiate = TRUE, conf.int = TRUE)
+}
+
+# Takes in the full dataframe and makes a summary of a given colname.
+#
+# Produces a dataframe with four columns - term, level, metric_type, metric.
+# Metrics are mean and sd if values are numeric, count and percent if factor.
+# For numeric metrics, 'level' is NA.
+make_iv_summary <- function(df, colname) {
+  values <- df[[colname]]
+  if (class(values) == "numeric") {
+    values_mean <- mean(values, na.rm = TRUE)
+    values_sd <- sd(values, na.rm = TRUE)
+    value_summary <- data.frame(
+      term = colname,
+      level = NA, # Dummy column to join with categorical fits
+      metric_type = c("mean", "sd"),
+      metric = c(values_mean, values_sd)
+    )
+  }
+
+  if (class(values) == "factor") {
+    value_summary <- values |>
+      table(useNA = "always") |>
+      as.data.frame() |>
+      setNames(c("level", "count")) |>
+      mutate(
+        # term and level get conjoined when fitting factors. This provides a
+        # join column to the original fit data.
+        term = paste0(colname, level),
+        percent = 100 * count / sum(count)
+      ) |>
+      pivot_longer(
+        cols = c("count", "percent"),
+        names_to = "metric_type",
+        values_to = "metric"
+      )
+  }
+  value_summary
+}
+
+
+
+
+recurrence_local <- prepare_patient_data(snakemake@input$patient_data, event_type = "recurrence")
+recurrence_distant <- prepare_patient_data(snakemake@input$patient_data, event_type = "recurrence", local = FALSE)
+survival <- prepare_patient_data(snakemake@input$patient_data, event_type = "survival")
+
+all_r_local <- fit_all_models(recurrence_local)
+all_r_local$dataset <- "recurrence_local"
+all_r_distant <- fit_all_models(recurrence_distant)
+all_r_distant$dataset <- "recurrence_distant"
+all_s <- fit_all_models(survival)
+all_s$dataset <- "survival"
+
+all <- bind_rows(all_r_local, all_r_distant, all_s)
+
+write_csv(all, snakemake@output$hr_data)
