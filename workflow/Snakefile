@@ -20,6 +20,8 @@ rule all:
         ecc_fold_change = f"{output_dir}/ecc_fold_change.txt",
         # Calculation of the fold change nuclear area of the ECCs
 
+        continuous_ecc_areas = f"{output_dir}/continuous_ecc_area.txt",
+
         # Plots ---------------------------------------------------------------
         fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
         gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
@@ -255,3 +257,14 @@ rule hr_survival_plots:
     conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/survival_analysis.R"
+
+rule continuous_ecc_area:
+    """Create a continuous metric of PACC area content based on pathologist cutoffs"""
+
+    input:
+        merged_ecc_sizes = f"{output_dir}/merged_ecc_sizes.txt"
+    output:
+        continuous_ecc_areas = f"{output_dir}/continuous_ecc_area.txt"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/continuous_ecc_area.R"
