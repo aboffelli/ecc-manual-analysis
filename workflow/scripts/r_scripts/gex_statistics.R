@@ -1,14 +1,21 @@
 ## Gene expression data
-library(tidyverse)
-library(RColorBrewer)
-library(asht)
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+suppressMessages(suppressWarnings(library(asht)))
 options(scipen=0)
 
 
+# Access the input files
+input_file <- snakemake@input[[1]]
+
+# Access output
+output_file <- snakemake@output[[1]]
+
+
 # Read the patient data, and set #NULL! to be recognized as NA.
-data <- read_tsv("~/PACC/TMA/Results/all_patients_with_TMA_PACC_HIF_GEX.csv",
-                 na = "#NULL!") %>% 
-    #filter(hist_gra %in% c(1,2)) %>% 
+data <- suppressMessages(suppressWarnings(read_tsv(input_file,
+                 na = "#NULL!"))) %>% 
+    #filter(hist_gra %in% c(1,2)) %>%
     mutate(hist_gra=as.factor(hist_gra))    # Make a factor
 
 # For the statistical test, we need the table in the long format.
@@ -43,9 +50,13 @@ results_mann_whitney <-  long_exp %>%
               .groups = 'drop')
 
 ## Plot ----
+gene_to_plot <- snakemake@params[["gene"]]
+y_label <- snakemake@params[["y_label"]]
+
+## Plot ----
 plots <- long_exp %>% 
     # Filter the gene you want (if you want a specific one)
-    #filter(gene=="epas1") %>% 
+    filter(gene==gene_to_plot) %>%
     ggplot(aes(x=PACC_YN, y=expression)) +
 
     # Points for every patient.
@@ -69,13 +80,13 @@ plots <- long_exp %>%
     theme(legend.position = "none")+
 
     # Add the mann-whitney p-value on the top of the plot
-    annotate("text", x=2, y= 1.5, label = paste0("p = ", round(results_mann_whitney$p_value, 3)), size=6) +
+    annotate("text", x=1.5, y= 2, label = paste0("p = ", round(results_mann_whitney$p_value[results_mann_whitney$gene==gene_to_plot], 3)), size=6) +
 
     # Change the labels (depends on the gene you filtered)
-    labs(x="ECC Score", y="EPAS1 Expression")
+    labs(x = "ECC Score", y = y_label)
 
     # If you want all the genes, uncomment the line below
     #facet_grid(~gene)
 
 # Save a tif image.
-ggsave("~/PACC/TMA/Manuscript/gex_boxplot.tif", plots, width=110, height=110, units = 'mm')
+ggsave(output_file, plots, width=110, height=110, units = 'mm')
