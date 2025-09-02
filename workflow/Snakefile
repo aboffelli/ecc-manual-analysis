@@ -36,9 +36,9 @@ rule all:
 
         # Hazard Ratio tables --------------------------------------------------
         hr_surv = f"{hr_dir}/os_with_grade.csv",
-        #hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
-        #hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv"
+        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv"
         
         ## TODO: Plots to be included in the snakemake workflow
         # surv_curve = f"{plot_dir}/survival_km_plot_all_grades.tif",
@@ -256,12 +256,12 @@ rule hr_statistics:
     output:
         hr_surv = f"{hr_dir}/os_with_grade.csv",
         ## TODO: Fix the script to handle all grades separately
-        # hr_surv_grade_1 = f"{hr_dir}/os_grade1.csv",
-        # hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
-        # hr_surv_grade_3 = f"{hr_dir}/os_grade3.csv",
+        hr_surv_grade_1 = f"{hr_dir}/os_grade1.csv",
+        hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        hr_surv_grade_3 = f"{hr_dir}/os_grade3.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
-        # hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
-        # hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
-        # hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv"
+        hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
+        hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
+        hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv"
     script:
         "scripts/r_scripts/hr_competing_risk.R"

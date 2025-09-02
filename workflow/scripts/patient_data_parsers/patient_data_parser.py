@@ -1,6 +1,10 @@
 
 # Import pandas for data manipulation
 import pandas as pd
+import warnings
+
+# Suppress FutureWarnings to keep the output clean
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 # Access the Snakemake inputs and outputs
