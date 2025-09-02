@@ -41,6 +41,7 @@ rule all:
         gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
 
         # Hazard Ratio tables --------------------------------------------------
+        hr_data = f"{hr_dir}/all_hr_data.csv",
         hr_surv = f"{hr_dir}/os_with_grade.csv",
         hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
         hr_rec = f"{hr_dir}/or_with_grade.csv",
@@ -312,3 +313,16 @@ rule all_data_with_continuous_ecc:
     conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/all_data_with_continuous_ecc.R"
+
+rule continuous_hr_statistics:
+    """
+    Like hr_statistics, but uses a metric based on ECC area rather than binarized ECC counts.
+    """
+
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        hr_data = f"{hr_dir}/all_hr_data.csv"
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/continuous_hr_competing_risk.R"
