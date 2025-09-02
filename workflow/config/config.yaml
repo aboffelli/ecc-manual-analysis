@@ -10,3 +10,9 @@ input_files:
 output_dir: results
 plot_dir: results/plots
 hr_dir: results/hr
+
+config:
+  # Gene to plot in the GEX boxplot
+  # Options are "cdk1","epas1","hif1a","mki67"
+  gex_plot_gene: "epas1"
+  gex_plot_y_label: "EPAS1 Expression"
