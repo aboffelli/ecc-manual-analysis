@@ -1,55 +1,50 @@
+library(tidyverse)
+library(gridExtra)
+library(grid)
+library(mclust)
+library(gtools)
 
-# Suppress messages and warnings from the whole script to keep snakemake output clean
-suppressMessages(suppressWarnings({
-    library(tidyverse)
-    library(gridExtra)
-    library(grid)
-    library(mclust)
-    library(gtools)
+setwd(dir = "~/PACC/TMA/Results/QuPathScoreTables/")
 
-    set.seed(123)  # Ensures reproducibility
+plot_gmm_histogram <- function(data, image_name, filename) {
+    filename = str_remove(filename, "_measurements.txt") # get only the TMA number.
+    print(paste(filename, image_name))  # Print just as a progress indicator
+    
+    gmm <- Mclust(data$`Area µm^2`, G = 2)  # calculate the Gaussian mixture
+    
+    # Calculate the percentiles for the Area.
+    quartiles <- quantile(data$`Area µm^2`, probs = c(0.25, 0.50, 0.75, 0.99))
+    q1 <- quartiles[1]  # 25th percentile
+    median <- quartiles[2]  # 50th percentile (median)
+    q3 <- quartiles[3]  # 75th percentile
+    cutoff_99 <- quartiles[4]  # 99th percentile
+    
+    # Extract the means, variance, and proportion from the gm model.
+    means <- gmm$parameters$mean
+    variances <- gmm$parameters$variance$sigmasq
+    proportions <- gmm$parameters$pro
+    
+    # Create a sequence of points across the data range to plot the GMM line
+    x_seq <- seq(min(data$`Area µm^2`), max(data$`Area µm^2`), 
+                 length.out = 1000)
+    
+    # Calculate the GMM density for each component
+    gmm_density <- rep(0, length(x_seq))
 
-    plot_gmm_histogram <- function(data, image_name, filename) {
-        filename = str_remove(filename, "_measurements.txt")
-        #cat(paste("Processed: ", filename, image_name, "\n"))
-        gmm <- Mclust(data$`Area µm^2`, G = 2)
-        
+    # Loop through each component of the GMM
+    for (k in 1:gmm$G) {
+        gmm_density <- gmm_density + proportions[k] * 
+            dnorm(x_seq, mean = means[k], 
+                  sd = sqrt(variances[k]))
+    }
+    
+    # Prepare the data frame for plotting
+    density_data <- data.frame(x = x_seq, y = gmm_density)
+    
 
-        means <- gmm$parameters$mean
-        variances <- gmm$parameters$variance$sigmasq
-        proportions <- gmm$parameters$pro
-        
-        # Create a sequence of points across the data range to plot the GMM line
-        x_seq <- seq(min(data$`Area µm^2`), max(data$`Area µm^2`), 
-                    length.out = 1000)
-        
-        # Calculate the GMM density for each component
-        gmm_density <- rep(0, length(x_seq))
+    p <- data %>%
+        ggplot(aes(`Area µm^2`)) +
 
-        # Loop through each component of the GMM
-        for (k in 1:gmm$G) {
-            gmm_density <- gmm_density + proportions[k] * 
-                dnorm(x_seq, mean = means[k], 
-                    sd = sqrt(variances[k]))
-        }
-        
-        # Prepare the data frame for plotting
-        density_data <- data.frame(x = x_seq, y = gmm_density)
-        
-
-        p <- data %>% 
-            ggplot(aes(`Area µm^2`)) +
-            geom_histogram(aes(y = after_stat(density)), bins = 300, 
-                        fill = "#619CFF", color = "#08519C", alpha=0.5) +
-            geom_line(data = density_data, aes(x = x, y = y), color = "black",
-                    linewidth = 1.2) +
-            geom_vline(xintercept = means, linetype = c("dashed", "dotdash"), ,
-                    color = c("#A50026", "#E08214"), size = 2) +
-            ggtitle(image_name) +
-            labs(x="Nuclear Area", y="Density") +
-            theme_classic(base_size = 20)+
-            xlim(0,1000)
-        
         print(p)
 
         # Return summary statistics as a tibble
@@ -66,36 +61,34 @@ suppressMessages(suppressWarnings({
 
     }
 
-    # Access the input files
-    filenames <- snakemake@input
+# List of files to be processed.
+filenames <- c("1A_EPCAM_measurements.txt",
+               "2A_EPCAM_measurements.txt",
+               "15A_EPCAM_measurements.txt",
+               "20A_EPCAM_measurements.txt")
 
-    # Access output
-    output_file <- snakemake@output[[1]]
+results <- filenames %>%
+    # Map loops through all files and performs the tasks in each of them
+    map_dfr(~ {  
+        data <- read_tsv(.x) %>%  # load the data
+            mutate(Image=as.character(str_replace_all(Image, "-|\\.tif$", "")))  # remove the extension of the file name in the Image column.
 
-    results <- filenames %>%
-        map_dfr(~ {
-            data <- read_tsv(.x) %>% 
-                mutate(Image=as.character(str_replace_all(Image, "-|\\.tif$", "")))
+        # Create a PDF for the current file, this will create one pdf file with all the plots for each measurement file.
+        pdf_filename <- str_replace(.x, "_measurements.txt", "_histograms.pdf")
+        pdf(pdf_filename,  width = 390 / 25.4, height = 240 / 25.4)
 
-            # Create a PDF for the current file
-            filename <- basename(.x)
-            pdf_filename <- str_replace(filename, 
-                                        "_measurements.txt", 
-                                        "_histograms.pdf")
+        # Process each Image within the file and plot
+        image_results <- data %>%
+            group_by(Image) %>%
+            do(plot_gmm_histogram(., unique(.$Image), .x))
+        
+        # Close the pdf only after all images were processed in the file
+        dev.off()
+        
+        # Save the summary table that returned from the function.
+        image_results
+    })
 
-            pdf(paste0("results/plots/", pdf_filename),  
-                width = 390 / 25.4, 
-                height = 240 / 25.4)
-            
-            # Process each Image within the file and plot
-            image_results <- data %>%
-                group_by(Image) %>%
-                do(plot_gmm_histogram(., unique(.$Image), filename))
-            dev.off()
-            image_results
-        })
-
-
-    results %>%
-        write_tsv(output_file)
-}))
+# Save the summary table as a csv file.
+results %>%
+    write_tsv("gmm_table.txt")
