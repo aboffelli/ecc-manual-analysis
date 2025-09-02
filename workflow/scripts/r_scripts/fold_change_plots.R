@@ -43,12 +43,14 @@ all_cells <- all_cells %>%
 
 ## Plot ----
 
+# Violin plot of the fold change by pathologist
 fold_change_plot <- human_score %>% 
     ggplot(aes(x=Pathologist, y=FoldChange, fill=Pathologist))+
     geom_violin(trim=FALSE) +
     scale_fill_manual(values = c('#FFFF99', "#CAB2D6"))+  # Fill colors
     theme_classic()
 
+# Scatter plot with fold change and area of the detections
 # fold_change_plot <- human_score %>%
 #     ggplot(aes(x=PaccArea, y=FoldChange, fill = Pathologist, 
 #                shape=Pathologist)) +
