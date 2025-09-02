@@ -1,14 +1,13 @@
-library(tidyverse)
-library(gridExtra)
-library(grid)
-library(mclust)
-library(gtools)
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(gridExtra)))
+suppressMessages(suppressWarnings(library(grid)))
+suppressMessages(suppressWarnings(library(mclust)))
+suppressMessages(suppressWarnings(library(gtools)))
 
-setwd(dir = "~/PACC/TMA/Results/QuPathScoreTables/")
 
 plot_gmm_histogram <- function(data, image_name, filename) {
     filename = str_remove(filename, "_measurements.txt")
-    print(paste(filename, image_name))
+    cat(paste("Processed: ", filename, image_name, "\n"))
     gmm <- Mclust(data$`Area µm^2`, G = 2)
     
 
@@ -63,27 +62,35 @@ plot_gmm_histogram <- function(data, image_name, filename) {
 
 }
 
-filenames <- c("1A_EPCAM_measurements.txt",
-               "2A_EPCAM_measurements.txt",
-               "15A_EPCAM_measurements.txt",
-               "20A_EPCAM_measurements.txt")
+# Access the input files
+filenames <- snakemake@input
+
+# Access output
+output_file <- snakemake@output[[1]]
 
 results <- filenames %>%
     map_dfr(~ {
-        data <- read_tsv(.x) %>% 
+        data <- suppressMessages(suppressWarnings(read_tsv(.x))) %>% 
             mutate(Image=as.character(str_replace_all(Image, "-|\\.tif$", "")))
-        
+
         # Create a PDF for the current file
-        pdf_filename <- str_replace(.x, "_measurements.txt", "_histograms.pdf")
-        pdf(pdf_filename,  width = 390 / 25.4, height = 240 / 25.4)
+        filename <- basename(.x)
+        pdf_filename <- str_replace(filename, 
+                                    "_measurements.txt", 
+                                    "_histograms.pdf")
+
+        pdf(paste0("results/plots/", pdf_filename),  
+            width = 390 / 25.4, 
+            height = 240 / 25.4)
         
         # Process each Image within the file and plot
         image_results <- data %>%
             group_by(Image) %>%
-            do(plot_gmm_histogram(., unique(.$Image), .x))
+            do(plot_gmm_histogram(., unique(.$Image), filename))
         dev.off()
         image_results
     })
 
+
 results %>%
-    write_tsv("gmm_table.txt")
+    write_tsv(output_file)
