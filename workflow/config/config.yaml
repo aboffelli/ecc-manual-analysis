@@ -5,14 +5,5 @@ input_files:
   immuno_tables: "resources/ImmunoStainings/SWEBCG_pathXL_export_all_230405*.csv"
   original_gex: "resources/GEX_46k_with_gene_names.csv"
   detection_tables: "resources/QuPathDetection/*A_EPCAM_measurements.txt"
-  ecc_sizes: "resources/ManualScores/*ecc_sizes.csv"
 
 output_dir: results
-plot_dir: results/plots
-hr_dir: results/hr
-
-config:
-  # Gene to plot in the GEX boxplot
-  # Options are "cdk1","epas1","hif1a","mki67"
-  gex_plot_gene: "epas1"
-  gex_plot_y_label: "EPAS1 Expression"

@@ -7,7 +7,7 @@ suppressMessages(suppressWarnings(library(gtools)))
 
 plot_gmm_histogram <- function(data, image_name, filename) {
     filename = str_remove(filename, "_measurements.txt")
-    cat(paste("Processed: ", filename, image_name, "\n"))
+    #cat(paste("Processed: ", filename, image_name, "\n"))
     gmm <- Mclust(data$`Area µm^2`, G = 2)
     
 
