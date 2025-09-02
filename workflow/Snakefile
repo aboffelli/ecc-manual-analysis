@@ -1,0 +1,98 @@
+import glob # Used for gathering input files dynamically
+
+
+# Rule: all
+# Specifies the final output files for the workflow
+rule all:
+    input:
+        "results/all_patient_unique_with_ecc_hif1a_gex.txt"
+        # surv_curve = "results/plots/survival_km_plot_all_grades.tif",
+        # rec_curve = "results/plots/overall_rec_km_plot_all_grades.tif",
+        # hr_surv = "results/hr/os_with_grade.csv",
+        # hr_rec = "results/hr/or_with_grade.csv"
+
+
+# Rule: merge_manual_score
+# Combines all manual scoring CSV files into a single complete results file.
+rule merge_manual_score:
+    input:
+        sorted(glob.glob("resources/ManualScores/*_scores.csv")) # Dynamically finds all manual scoring files
+    output:
+        "resources/complete_patho_results.csv" # Combined output of all scoring files
+    shell:
+        """
+        # Combine input CSV files, skipping headers after the first file.
+        awk 'BEGIN {{FS=OFS="\t"}} \
+        FNR == 1 && NR != 1 {{next}} \
+        {{print $1,$2,$3}}' \
+        {input} > {output}
+        """
+
+# Rule: ecc_patient_data
+# Parses patient data and maps TMA cores with ECC information.
+rule ecc_patient_data:
+    input:
+        patient_file = "resources/SB91RT_final_20170821_PrimoLR_EjPnr_orginal.csv",  # Original patient data file
+        tma_map = "resources/Koppling_PathXL_till_TMA-nr.csv",  # TMA mapping file
+        patho_score = "resources/complete_patho_results.csv"  # Combined manual scoring results
+    output:
+        patient_cores = "results/patient_with_core_ecc.txt",  # Patient data with mapped TMA cores and ECC
+        patient_ecc = "results/all_patient_unique_with_ecc.txt"  # Unique patient data with ECC
+    script:
+        "scripts/patient_data_parsers/patient_data_parser.py"  # Python script for processing
+
+# rule prepare_hif1a_file:
+#     input:
+#         tables = glob.glob("resources/hif1a/SWEBCG_pathXL_export_all_230405*.csv"),
+#         script = "scripts/prepare_hif1a.py"
+
+#     output:
+#         hif1a_data = "resources/hif_scores_merged.csv"
+#     shell:
+#         """
+#         # Step 1: Merge files using `awk`
+#         awk 'FNR==1 && NR!=1 {{next}} {{print}}' {input.tables} > tmp
+        
+#         # Step 2: Process the merged data with Python
+#         python {input.script} tmp {output.hif1a_data}
+
+#         rm tmp
+#         """
+
+rule hif_activation:
+    input:
+        patient_cores = "results/patient_with_core_ecc.txt",
+        patient_ecc = "results/all_patient_unique_with_ecc.txt",
+        hif1a_data = "resources/hif_scores_merged.csv"
+    
+    output:
+        "results/all_patient_unique_with_ecc_hif1a.txt"
+
+    script:
+        "scripts/r_scripts/hif1a_pacc.R"
+
+rule prepare_gex_file:
+    input:
+        original_gex = "resources/GEX_46k_with_gene_names.csv"
+    output:
+        gex = "resources/gex_interesting_genes.csv"
+    shell:
+        """
+        awk -F "," 'BEGIN {{OFS="\t"}} {{print $46057,$13533}}' \
+        {input.original_gex} | \
+        sed 's/\r//g' > {output}
+        """
+
+rule gene_expression:
+    input: 
+        patient_hif = "results/all_patient_unique_with_ecc_hif1a.txt",
+        gex = "resources/gex_interesting_genes.csv",
+        script = "scripts/patient_data_parsers/merge_gene_expression.awk"
+    
+    output:
+        "results/all_patient_unique_with_ecc_hif1a_gex.txt"
+    
+    shell:
+        """
+        awk -f {input.script} {input.gex} {input.patient_hif} > {output}
+        """
