@@ -1,8 +1,8 @@
 ##---- Competing risk regression
-library(tidyverse)
-library(cmprsk)
-library(finalfit)
-library(gt)
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(cmprsk)))
+suppressMessages(suppressWarnings(library(finalfit)))
+suppressMessages(suppressWarnings(library(gt)))
 
 custom_theme <- function(){theme_minimal() +
     theme(
@@ -99,8 +99,6 @@ surv_hr <- function(patient_df, grade=0, label) {
                 ff_label("ECC Score")
         )
     
-    print(table(surv_df_15$PACC_YN, surv_df_15$status_crr))
-    print(table(surv_df_15$hist_gra, surv_df_15$status_crr))
     # Survival objects
     dependent_os <- "Surv(rfs_upd, status_os)"
     dependent_dss <- "Surv(surv_dec, status_dss)"
@@ -248,8 +246,6 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
         )
     }
     
-    print(table(rec_df_10$PACC_YN, rec_df_10$status_crr))
-    print(table(rec_df_10$hist_gra, rec_df_10$status_crr))
     # Set the multivariable columns and the tests
     dependent_os <- "Surv(rfs_upd, status_os)"
     dependent_dss <- "Surv(rfs_upd, status_dss)"
@@ -293,77 +289,77 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
     return(list(or_cph, my_table))
 }
 
+
+# Access the snakemake variables
+input_file = snakemake@input[["patient_data"]]
+
+# Output files for survival
+out_surv = snakemake@output[["hr_surv"]]
+
+## TODO: Fix the script to handle all grades separately
+# out_surv_grade1 = snakemake@output[["hr_surv_grade1"]]
+out_surv_grade2 = snakemake@output[["hr_surv_grade2"]]
+# out_surv_grade3 = snakemake@output[["hr_surv_grade3"]]
+# Map the output files to a vector
+#out_surv_grades <- c(out_surv_grade1, out_surv_grade2, out_surv_grade3)
+
+# Output files for recurrence
+out_rec = snakemake@output[["hr_rec"]]
+# out_rec_grade1 = snakemake@output[["hr_rec_grade1"]]
+out_rec_grade2 = snakemake@output[["hr_rec_grade2"]]
+# out_rec_grade3 = snakemake@output[["hr_rec_grade3"]]
+# Map the output files to a vector
+#out_rec_grades <- c(out_rec_grade1, out_rec_grade2, out_rec_grade3)
+
 options(scipen = 0)
-dir <- "~/PACC/TMA/Results/"
-tables <- paste0(dir, "ManualScoreTables/")
-plot_dir_surv <- paste0(dir, "SurvPlots/Survival/")
-plot_dir_rec <- paste0(dir, "SurvPlots/Recurrence/")
-patient_data <- read_tsv(paste0(dir,
-                                "all_patient_unique_with_pacc_full_score_new.csv"),
-                         na = "#NULL!") %>%
-    mutate(PACC=if_else(PACC=="NA", NA, as.integer(PACC)),
-           PACC_YN = if_else(PACC == 2, 1, 0),
-           hist_gra=as.factor(hist_gra),
-           recgrp=as.factor(recgrp),
-           tumsize=as.numeric(tumsize),
-           adjbeh = as.factor(adjbeh)
-           
-           ) %>% 
+
+patient_data <- suppressMessages(suppressWarnings(read_tsv(input_file,
+                         na = "#NULL!"))) %>%
+        mutate(PACC=if_else(PACC=="NA", NA, as.integer(PACC)),
+        PACC_YN = if_else(PACC == 2, 1, 0),
+        hist_gra=as.factor(hist_gra),
+        recgrp=as.factor(recgrp),
+        tumsize=as.numeric(tumsize),
+        adjbeh = as.factor(adjbeh)
+
+        ) %>% 
     filter(exkl == 0, tumor == 1) %>% 
     droplevels()
 
-# Use 15 years censor for survival
-# Year cut off to censor
-censor_yr <- 15
-
 ## Survival ----
+# Survival with all grades
 all_grades <- surv_hr(patient_df = patient_data,
                      label = "Survival")
 
-write_tsv(all_grades[[1]], paste0(dir,"HazardRatio/os_with_grade.csv"))
-write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/surv_with_grade.csv"))
+write_tsv(all_grades[[2]], out_surv)
 
-for (i in c(1,2,3)) {
-    new_table <- surv_hr(patient_df = patient_data,
-                         grade = i,
-                         label = paste("Survival: Grade",i))
+# Survival for all grades separately
+# for (i in c(1,2,3)) {
+#     new_table <- surv_hr(patient_df = patient_data,
+#                          grade = i,
+#                          label = paste("Survival: Grade",i))
     
     write_tsv(new_table[[1]],
               paste0(dir,"HazardRatio/os_with_grade",i,".csv"))
     write_tsv(new_table[[2]],
               paste0(dir,"HazardRatio/surv_with_grade",i,".csv"))
 }
+#     write_tsv(new_table[[2]], out_surv_grades[i])
+# }
 
-## Overall and Local Recurrence ----
-# Local recurrence
+## Overall Recurrence ----
+# Recurrence with all grades
 all_grades <- rec_hr(patient_data, grade = 0, 
                               label = "Local recurrence",
                               local = T)
-gt(all_grades[[1]])
 
-write_tsv(all_grades[[1]], paste0(dir,"HazardRatio/or_with_grade.csv"))
-#write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/lr_with_grade.csv"))
-# Local recurrence for all grades separately
-for (i in c(1,2,3)) {
-    new_table <- rec_hr(patient_data, grade = i,
-                              label = paste("Local recurrence: Grade", i),
-                              local = TRUE)
+write_tsv(all_grades[[1]], out_rec)
 
-    write_tsv(new_table[[1]], paste0(dir,"HazardRatio/or_with_grade",i,".csv"))
-    #write_tsv(new_table[[2]], paste0(dir,"HazardRatio/lr_with_grade",i,".csv"))
-}
-
-
-
-## Distant recurrence table ----
-# all_grades <- rec_hr(patient_data, grade = 0, 
-#                               label = "Distant recurrence",
-#                               local = F)
-# write_tsv(all_grades[[2]], paste0(dir,"HazardRatio/dr_with_grade.csv"))
+# Recurrence for all grades separately
 # for (i in c(1,2,3)) {
-#     dist_table <- rec_hr(patient_data, grade = i, 
-#                                  label = paste("Distant recurrence: Grade", i),
-#                                  local = FALSE)
-#     
-#     write_tsv(dist_table[[2]], paste0(dir,"HazardRatio/dr_with_grade",i,".csv"))
+#     new_table <- rec_hr(patient_data, grade = i,
+#                               label = paste("Local recurrence: Grade", i),
+#                               local = TRUE)
+
+#     write_tsv(new_table[[1]], out_rec_grades[i])
 # }

@@ -32,13 +32,18 @@ rule all:
 
         # Plots ---------------------------------------------------------------
         fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
-        gex_boxplot = f"{plot_dir}/gex_boxplot.tif"
+        gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
+
+        # Hazard Ratio tables --------------------------------------------------
+        hr_surv = f"{hr_dir}/os_with_grade.csv",
+        #hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        hr_rec = f"{hr_dir}/or_with_grade.csv",
+        #hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv"
         
         ## TODO: Plots to be included in the snakemake workflow
         # surv_curve = f"{plot_dir}/survival_km_plot_all_grades.tif",
         # rec_curve = f"{plot_dir}/overall_rec_km_plot_all_grades.tif",
-        # hr_surv = f"{output_dir}/hr/os_with_grade.csv",
-        # hr_rec = f"{output_dir}/hr/or_with_grade.csv"
+
 
 
 rule setup_dirs:
@@ -240,3 +245,23 @@ rule gex_statistics:
         y_label = config["config"]["gex_plot_y_label"],  # Y-axis label for the plot
     script:
         "scripts/r_scripts/gex_statistics.R"
+
+rule hr_statistics:
+    """
+    Generates hazard ratio statistics for overall survival and recurrence
+    based on the patient data.
+    """
+    input:
+        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+    output:
+        hr_surv = f"{hr_dir}/os_with_grade.csv",
+        ## TODO: Fix the script to handle all grades separately
+        # hr_surv_grade_1 = f"{hr_dir}/os_grade1.csv",
+        # hr_surv_grade_2 = f"{hr_dir}/os_grade2.csv",
+        # hr_surv_grade_3 = f"{hr_dir}/os_grade3.csv",
+        hr_rec = f"{hr_dir}/or_with_grade.csv",
+        # hr_rec_grade_1 = f"{hr_dir}/or_grade1.csv",
+        # hr_rec_grade_2 = f"{hr_dir}/or_grade2.csv",
+        # hr_rec_grade_3 = f"{hr_dir}/or_grade3.csv"
+    script:
+        "scripts/r_scripts/hr_competing_risk.R"
