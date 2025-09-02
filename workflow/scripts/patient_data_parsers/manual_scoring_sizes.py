@@ -1,10 +1,11 @@
 import re
 
-# Set the path for the files
-filename = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/merged_ecc_sizes.txt'
-output = '/home/aboffelli/PACC/TMA/Results/ManualScoreTables/ecc_fold_change.csv'
-gmm_file = '/home/aboffelli/PACC/TMA/Results/QuPathScoreTables/gmm_table.txt'
+# Acess the input files
+filename = snakemake.input["merged_ecc_sizes"]
+gmm_file = snakemake.input["gmm_table"]
 
+# Access the output files
+output = snakemake.output[0]
 
 gmm_dictionary = {}
 
@@ -84,4 +85,3 @@ with open(filename) as sizes, open(output,'w') as out:
                     fold_change = round(size/core_mean, 2)  # Calculate the fold change 
                 print(f"""{patho}\t{parent}\t{core_id}\t{round(core_mean, 2)}\t\
 {round(p_99, 2)}\t{size}\t{fold_change}""", file=out)  # Print to output file
-    
