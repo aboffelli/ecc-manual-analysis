@@ -1,6 +1,7 @@
 ##---- Kaplan meier curves PACC / no-PACC
 
 suppressMessages(suppressWarnings({
+    source("renv/activate.R")
     library(tidyverse)
     library(survival)
     library(survminer)
