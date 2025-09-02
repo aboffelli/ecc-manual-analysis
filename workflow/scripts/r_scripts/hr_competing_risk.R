@@ -216,11 +216,100 @@ rec_hr <- function(patient_df, grade=0, label, local=TRUE) {
             status_os = if_else(ev1typ20 == 0, 0, # "rec free"
                                 1), # "recurrence any type"
             
-            # Diease-specific survival
-            status_dss = if_else(ev1typ20 == 0, 0, # "rec free"
-                                 if_else(ev1typ20 != 4, 1, # "local recurrence"
-                                         0)), # "distant recurrence censored"
-            
+        } else {
+            rec_df_10 <- rec_df_10 %>% 
+                mutate(
+                # Overall survival
+                status_os = if_else(ev1typ20 == 0, 0, # "rec free"
+                                    1), # "recurrence any type"
+                
+                # Diease-specific survival
+                status_dss = if_else(ev1typ20 == 0, 0, # "rec free"
+                                    if_else(ev1typ20 == 4, 1, # "distant recurrence"
+                                            0)), # "local recurrence censored"
+                
+                # Competing risks regression
+                status_crr = if_else(ev1typ20 == 0, 0, # "rec free"
+                                    if_else(ev1typ20 == 4, 1, # distant recurrence"
+                                            2)), # "local recurrences"
+            )
+        }
+        
+        # Set the multivariable columns and the tests
+        dependent_os <- "Surv(rfs_upd, status_os)"
+        dependent_dss <- "Surv(rfs_upd, status_dss)"
+        dependent_crr <- "Surv(rfs_upd, status_crr)"
+        
+        or_cph <- rec_df_10 %>% 
+            finalfit(dependent_os, explanatory, add_dependent_label = FALSE) %>% 
+            rename(!!or_label := label) %>% 
+            rename(" " = levels) %>% 
+            rename("  " = all)
+        
+        my_table <- rec_df_10 %>%
+            # Summary table
+            summary_factorlist(dependent_dss, explanatory, 
+                            column = TRUE, fit_id = TRUE) %>%
+            # CPH univariable
+            ff_merge(
+                explanatory %>%
+                    map(~ rec_df_10 %>%
+                            coxph(as.formula(paste(dependent_dss, .x, sep = " ~ ")), 
+                                data = .) %>%
+                            fit2df(estimate_suffix = " CPH univariable")
+                    )%>%
+                    bind_rows()
+            ) %>%
+            # CPH multivariable
+            ff_merge(
+                rec_df_10 %>%
+                    coxphmulti(dependent_dss, explanatory) %>%
+                    fit2df(estimate_suffix = " CPH multivariable")
+            ) %>%
+            # Fine and Gray competing risks regression
+            ff_merge(
+                rec_df_10 %>%
+                    crrmulti(dependent_crr, explanatory) %>%
+                    fit2df(estimate_suffix = " competing risks multivariable")
+            ) %>%
+            select(-fit_id, -index) %>%
+            dependent_label(rec_df_10, label)
+        
+        return(list(or_cph, my_table))
+    }
+
+
+    # Access the snakemake variables
+    input_file = snakemake@input[["patient_data"]]
+
+    # Output files for survival
+    out_surv = snakemake@output[["hr_surv"]]
+    out_surv_grade1 = snakemake@output[["hr_surv_grade_1"]]
+    out_surv_grade2 = snakemake@output[["hr_surv_grade_2"]]
+    out_surv_grade3 = snakemake@output[["hr_surv_grade_3"]]
+
+    # Map the output files to a vector
+    out_surv_grades <- c(out_surv_grade1, out_surv_grade2, out_surv_grade3)
+
+    # Output files for recurrence
+    out_rec = snakemake@output[["hr_rec"]]
+    out_rec_grade1 = snakemake@output[["hr_rec_grade_1"]]
+    out_rec_grade2 = snakemake@output[["hr_rec_grade_2"]]
+    out_rec_grade3 = snakemake@output[["hr_rec_grade_3"]]
+    # Map the output files to a vector
+    out_rec_grades <- c(out_rec_grade1, out_rec_grade2, out_rec_grade3)
+
+    options(scipen = 0)
+
+    patient_data <- read_tsv(input_file,
+                            na = "#NULL!") %>%
+            mutate(PACC=if_else(PACC=="NA", NA, as.integer(PACC)),
+            PACC_YN = if_else(PACC == 2, 1, 0),
+            hist_gra=as.factor(hist_gra),
+            recgrp=as.factor(recgrp),
+            tumsize=as.numeric(tumsize),
+            adjbeh = as.factor(adjbeh)
+
             # Competing risks regression
             status_crr = if_else(ev1typ20 == 0, 0, # "rec free"
                                  if_else(ev1typ20 != 4, 1, # local recurrence"

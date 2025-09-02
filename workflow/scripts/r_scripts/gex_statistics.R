@@ -1,8 +1,14 @@
 ## Gene expression data
-suppressMessages(suppressWarnings(library(tidyverse)))
-suppressMessages(suppressWarnings(library(RColorBrewer)))
-suppressMessages(suppressWarnings(library(asht)))
-options(scipen=0)
+
+# Suppress messages and warnings from the whole script to keep snakemake output clean
+suppressMessages(suppressWarnings({
+    library(tidyverse)
+    library(RColorBrewer)
+    if (!requireNamespace("asht", quietly = TRUE)) {
+        install.packages("asht", repos = "https://cloud.r-project.org")
+        }
+    library(asht)
+    options(scipen=0)
 
 
 # Access the input files
