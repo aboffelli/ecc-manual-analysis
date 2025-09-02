@@ -33,6 +33,9 @@ rule all:
         continuous_ecc_areas = f"{output_dir}/continuous_ecc_area.txt",
         # Nuclear areas of ECCs expressed as a continuous variable
 
+        all_data_with_continuous_ecc = f"{output_dir}/all_data_with_continuous_ecc.txt",
+        # Continuous ECC metric joined with clinical data
+
         # Plots ---------------------------------------------------------------
         fold_change_plot = f"{plot_dir}/ecc_fc_scatterplot.tif",
         gex_boxplot = f"{plot_dir}/gex_boxplot.tif",
@@ -297,3 +300,15 @@ rule continuous_ecc_area:
     conda: "envs/r_env.yaml"
     script:
         "scripts/r_scripts/continuous_ecc_area.R"
+
+rule all_data_with_continuous_ecc:
+    """Joins patient data, gene expression data, and hif activation with the continuous ECC metric"""
+
+    input:
+        all_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt",
+        ecc_metric_per_core = f"{output_dir}/big_cell_rois.txt"
+    output:
+        all_data_with_continuous_ecc = f"{output_dir}/all_data_with_continuous_ecc.txt",
+    conda: "envs/r_env.yaml"
+    script:
+        "scripts/r_scripts/all_data_with_continuous_ecc.R"
