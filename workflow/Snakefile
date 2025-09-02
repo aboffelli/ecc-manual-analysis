@@ -316,7 +316,7 @@ rule continuous_hr_statistics:
     """
 
     input:
-        patient_data = f"{output_dir}/all_patient_unique_with_ecc_hif1a_gex.txt"
+        patient_data = f"{output_dir}/all_data_with_continuous_ecc.txt"
     output:
         hr_data = f"{hr_dir}/all_hr_data.csv"
     conda: "envs/r_env.yaml"

@@ -49,8 +49,8 @@ prepare_patient_data <- function(path,
     if (event_type == "recurrence") n_years_cutoff <- 10
   }
 
-  df <- read_tsv(
-    path, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n")
+  df <- read_csv(
+    path, na = "#NULL!", col_types = cols(PACC = "i", tumsize = "n", metric = "n")
   ) |>
     filter(
       exkl == 0,
@@ -154,7 +154,7 @@ fit_all_models <- function(df) {
         df, ~ hist_gra, fit_coxph,
         model_type = model_type,
         event_col = event_col,
-        independent_variables = c("age", "rt_treat", "PACC_YN", "recgrp", "tumsize")
+        independent_variables = c("age", "rt_treat", "metric", "recgrp", "tumsize")
       )
     },
     arg_table$model_type, arg_table$event_col, SIMPLIFY = FALSE
@@ -172,7 +172,7 @@ fit_all_models <- function(df) {
 fit_coxph <- function(df,
                       model_type = c("univariable", "multivariable"),
                       event_col = "status_dss",
-                      independent_variables = c("age", "rt_treat", "PACC_YN", "hist_gra", "recgrp", "tumsize"),
+                      independent_variables = c("age", "rt_treat", "metric", "hist_gra", "recgrp", "tumsize"),
                       time_col = "time") {
   model_type <- match.arg(model_type, c("univariable", "multivariable"))
 
@@ -272,10 +272,12 @@ make_iv_summary <- function(df, colname) {
 
 
 
-
-recurrence_local <- prepare_patient_data(snakemake@input$patient_data, event_type = "recurrence")
-recurrence_distant <- prepare_patient_data(snakemake@input$patient_data, event_type = "recurrence", local = FALSE)
-survival <- prepare_patient_data(snakemake@input$patient_data, event_type = "survival")
+input_path <- ifelse(
+  interactive(), "./results/all_data_with_continuous_ecc.txt", snakemake@input$patient_data
+)
+recurrence_local <- prepare_patient_data(input_path, event_type = "recurrence")
+recurrence_distant <- prepare_patient_data(input_path, event_type = "recurrence", local = FALSE)
+survival <- prepare_patient_data(input_path, event_type = "survival")
 
 all_r_local <- fit_all_models(recurrence_local)
 all_r_local$dataset <- "recurrence_local"
